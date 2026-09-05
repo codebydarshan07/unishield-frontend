@@ -7,11 +7,11 @@ import {
   Shield, Activity, AlertTriangle, Crosshair, 
   Database, Layout, Terminal, Server, Cpu, 
   Target, Radio, CheckCircle2, ShieldAlert,
-  Search, ArrowRight, Menu, X
+  Search, ArrowRight, Menu, X, Filter, Copy, ExternalLink, ActivitySquare
 } from 'lucide-react';
 
 // ============================================================================
-// MOCK DATA (FULLY RESTORED)
+// MOCK DATA 
 // ============================================================================
 const threatActivityData = [
   { time: '15:55', high: 4, medium: 12, low: 25 },
@@ -64,7 +64,7 @@ const getSeverityColor = (severity) => {
 // ============================================================================
 export default function UniShieldDashboard() {
   const [pulse, setPulse] = useState(false);
-  const [activePage, setActivePage] = useState('overview'); 
+  const [activePage, setActivePage] = useState('logs'); 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   useEffect(() => {
@@ -74,7 +74,7 @@ export default function UniShieldDashboard() {
 
   const handleNavClick = (page) => {
     setActivePage(page);
-    setMobileMenuOpen(false); // Close mobile menu when an item is clicked
+    setMobileMenuOpen(false); 
   };
 
   return (
@@ -187,8 +187,16 @@ export default function UniShieldDashboard() {
                 </p>
               </div>
             </div>
-            <div className="text-[9px] md:text-[10px] font-mono text-slate-500 tracking-widest uppercase hidden sm:flex items-center">
-              {activePage === 'stream' ? (
+            <div className="text-[9px] md:text-[10px] font-mono text-slate-500 tracking-widest uppercase hidden sm:flex items-center space-x-4">
+              {activePage === 'logs' ? (
+                <>
+                  <span>Last update: 16:55:04</span>
+                  <span className="flex items-center text-emerald-400 border border-emerald-900/50 bg-emerald-950/20 px-2 py-1 rounded">
+                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-2 animate-pulse"></span>
+                    ● LIVE
+                  </span>
+                </>
+              ) : activePage === 'stream' ? (
                 <span className="flex items-center text-emerald-400 border border-emerald-900/50 bg-emerald-950/20 px-2 py-1 rounded">
                   <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-2 animate-pulse"></span>
                   ● LIVE INGEST
@@ -218,7 +226,7 @@ export default function UniShieldDashboard() {
 }
 
 // ============================================================================
-// FULL VIEWS (RESTORED & RESPONSIVE)
+// FULL VIEWS 
 // ============================================================================
 
 function ExecutiveView() {
@@ -381,16 +389,6 @@ function ExecutiveView() {
           </div>
         </div>
       </div>
-
-      <div className="hidden md:flex items-center justify-between bg-[#060913] border border-indigo-900/30 px-5 py-3 shrink-0 text-[10px] font-mono tracking-widest uppercase">
-        <span className="text-slate-300 font-bold">SYSTEM HEALTH</span>
-        <div className="flex items-center space-x-8 text-slate-400">
-          <span className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2"></span> ZEEK SENSORS 3/3 ONLINE</span>
-          <span className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2"></span> KAFKA HEALTHY</span>
-          <span className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2"></span> ML PIPELINE HEALTHY</span>
-          <span className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2"></span> ALERT ENGINE HEALTHY</span>
-        </div>
-      </div>
     </div>
   );
 }
@@ -409,14 +407,6 @@ function LiveStreamView() {
   ];
 
   const selectedEvent = liveDetections.find(e => e.id === selectedEventId) || liveDetections[0];
-
-  const pipelineStages = [
-    { label: 'ZEEK', status: 'RUNNING', rate: '18.4K/s' },
-    { label: 'KAFKA', status: 'CONNECTED', rate: '18.4K/s' },
-    { label: 'FEATURE ENGINE', status: 'RUNNING', rate: '18.3K/s' },
-    { label: 'ML INFERENCE', status: 'READY', rate: '18.2K/s' },
-    { label: 'THREAT DETECTION', status: 'ACTIVE', rate: '6 EVENTS' },
-  ];
 
   return (
     <div className="flex flex-col h-full space-y-4 md:space-y-5">
@@ -513,38 +503,9 @@ function LiveStreamView() {
         </div>
       </div>
 
-      <div className="bg-[#0a0f1c] border border-indigo-900/30 p-4 shrink-0 flex flex-col relative overflow-hidden hidden md:flex">
-        <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
-        <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase border-b border-indigo-900/30 pb-3 mb-6">DETECTION PIPELINE</h3>
-        <div className="flex items-center justify-between px-6 pb-2">
-          {pipelineStages.map((stage, i) => (
-            <React.Fragment key={i}>
-              <div className="flex flex-col items-center space-y-2">
-                <span className="text-[10px] font-mono text-slate-400 uppercase tracking-widest">{stage.label}</span>
-                <span className="text-[9px] font-mono text-emerald-400 flex items-center">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>
-                  ● {stage.status}
-                </span>
-                <span className="text-[10px] font-mono text-slate-500">{stage.rate}</span>
-              </div>
-              {i < pipelineStages.length - 1 && (
-                <div className="flex-1 flex items-center justify-center opacity-40">
-                  <ArrowRight className="w-4 h-4 text-purple-400" />
-                </div>
-              )}
-            </React.Fragment>
-          ))}
-        </div>
-      </div>
-
       <div className="bg-[#0a0f1c] border border-indigo-900/30 shrink-0">
         <div className="px-4 py-3 border-b border-indigo-900/30 bg-[#060913]/50 flex items-center justify-between">
           <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase">FULL EVENT LOG</h3>
-          <div className="hidden sm:flex items-center space-x-2 text-[10px] font-mono">
-            <span className="bg-[#030712] border border-slate-800 px-2 py-0.5 rounded text-slate-400">ALL SEVERITIES ▼</span>
-            <span className="bg-[#030712] border border-slate-800 px-2 py-0.5 rounded text-slate-400">SEARCH</span>
-            <span className="text-emerald-400 flex items-center ml-2"><span className="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-1"></span> LIVE</span>
-          </div>
         </div>
         <div className="overflow-x-auto max-h-[300px] md:max-h-[220px]">
           <table className="w-full text-left whitespace-nowrap">
@@ -614,15 +575,6 @@ function AnalyticsView() {
     { name: 'Anomalous Flow', events: 156, conf: '91.7%' },
   ];
 
-  const modelHealth = [
-    { name: 'Isolation Forest', status: 'READY' },
-    { name: 'Random Forest', status: 'READY' },
-    { name: 'XGBoost', status: 'READY' },
-    { name: 'Autoencoder', status: 'READY' },
-    { name: 'LSTM / DGA', status: 'READY' },
-    { name: 'Ensemble', status: 'ACTIVE', isHighlight: true },
-  ];
-
   return (
     <div className="flex flex-col h-full space-y-4 md:space-y-5">
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4 shrink-0">
@@ -656,18 +608,6 @@ function AnalyticsView() {
                 <span className="w-8 text-right text-[10px] font-mono text-slate-300 font-bold">{feat.value}%</span>
               </div>
             ))}
-          </div>
-          <div className="mt-4 pt-3 border-t border-indigo-900/30 bg-[#060913]/50 p-2 border border-slate-800 hidden sm:block">
-            <div className="flex justify-between items-start">
-              <div>
-                <span className="text-[9px] font-mono text-slate-500 uppercase block mb-1">TOP CONTRIBUTING FEATURE</span>
-                <span className="text-[11px] font-mono text-purple-400 font-bold">Source Entropy</span>
-              </div>
-              <div className="text-right">
-                <span className="text-[9px] font-mono text-slate-500 uppercase block mb-1">TREND</span>
-                <span className="text-[10px] font-mono text-emerald-400 tracking-wider">↑ 4.2%</span>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -721,104 +661,105 @@ function AnalyticsView() {
           </table>
         </div>
       </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5 flex-1 min-h-[160px]">
-        <div className="bg-[#0a0f1c] border border-indigo-900/30 flex flex-col p-4">
-          <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase border-b border-indigo-900/30 pb-3 mb-4">DETECTION IMPACT</h3>
-          <div className="flex-1 flex flex-col justify-center space-y-3">
-            {detectionImpact.map((impact, i) => (
-              <div key={i} className="flex justify-between items-center text-[10px] font-mono border-b border-slate-800/50 pb-2 last:border-0 last:pb-0">
-                <span className="text-slate-300 uppercase tracking-widest w-32">{impact.name}</span>
-                <span className="text-slate-400">{impact.events} events</span>
-                <span className="text-purple-400 font-bold">{impact.conf} conf</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-[#0a0f1c] border border-indigo-900/30 flex flex-col p-4">
-          <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase border-b border-indigo-900/30 pb-3 mb-4">MODEL HEALTH</h3>
-          <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-[10px] font-mono">
-            {modelHealth.map((health, i) => (
-              <div key={i} className="flex items-center justify-between bg-[#060913]/50 px-2 py-1.5 border border-slate-800/80 rounded-sm">
-                <span className="text-slate-400 uppercase tracking-widest truncate mr-2">{health.name}</span>
-                <span className={`flex items-center tracking-wider ${health.isHighlight ? 'text-purple-400' : 'text-emerald-400'}`}>
-                  <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${health.isHighlight ? 'bg-purple-500' : 'bg-emerald-500'}`}></span>
-                  {health.status}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
 
+// ============================================================================
+// ZEEK LOGS VIEW (COMPLETELY REDESIGNED)
+// ============================================================================
 function ZeekLogsView() {
   const [selectedEventId, setSelectedEventId] = useState('Cn2b211');
-  
+
+  // Realistic Zeek Event Mock Data (Section 3 format)
   const zeekEvents = [
     {
-      id: 'Ch9k312', time: '16:54:59.72', log: 'conn.log', uid: 'Ch9k312',
-      src: '10.24.18.42:53', dst: '10.24.0.53:53',
-      line1: 'UDP   512 bytes', color: 'text-indigo-300',
-      parsed: { ts: "16:54:59.72", uid: "Ch9k312", src: "10.24.18.42", dst: "10.24.0.53", proto: "udp", bytes: 512 }
+      id: 'CjH2u123', ts: '16:55:04.12', log: 'conn.log', uid: 'CjH2u123', 
+      src: '10.24.5.18:54210', dst: '10.24.1.10:80', 
+      summary: 'TCP   14280 bytes   duration 0.82s', 
+      color: 'text-slate-300', severity: 'INFO',
+      type: 'CONNECTION', ports: '80',
+      raw: { "ts": 165504.12, "uid": "CjH2u123", "id.orig_h": "10.24.5.18", "id.orig_p": 54210, "id.resp_h": "10.24.1.10", "id.resp_p": 80, "proto": "tcp", "duration": 0.82, "orig_bytes": 1024, "resp_bytes": 14280 }
     },
     {
-      id: 'Cn2b211', time: '16:55:00.94', log: 'notice.log', uid: 'Cn2b211',
-      src: '10.24.3.22', dst: '—',
-      line1: 'Scan::Address_Scan', color: 'text-amber-400',
-      parsed: { ts: "16:55:00.94", uid: "Cn2b211", src: "10.24.3.22", notice: "Address_Scan", ports: 65, action: "alert" }
+      id: 'Cd87a32', ts: '16:55:03.87', log: 'dns.log', uid: 'Cd87a32', 
+      src: '10.24.7.41', dst: '10.24.0.53', 
+      summary: 'query: 3fa7b12.tunnel.c2node.io\ntype: TXT   status: NOERROR', 
+      color: 'text-slate-300', severity: 'INFO',
+      type: 'DNS QUERY', ports: '53',
+      raw: { "ts": 165503.87, "uid": "Cd87a32", "id.orig_h": "10.24.7.41", "id.resp_h": "10.24.0.53", "query": "3fa7b12.tunnel.c2node.io", "qtype_name": "TXT", "rcode_name": "NOERROR" }
     },
     {
-      id: 'Cw91x00', time: '16:55:01.22', log: 'weird.log', uid: 'Cw91x00',
-      src: '10.24.3.22', dst: '—',
-      line1: 'active_connection_reuse', color: 'text-rose-400',
-      parsed: { ts: "16:55:01.22", uid: "Cw91x00", src: "10.24.3.22", weird: "active_connection_reuse", addl: "peer_anomaly" }
+      id: 'Cs34f99', ts: '16:55:02.41', log: 'ssl.log', uid: 'Cs34f99', 
+      src: '10.24.8.19:443', dst: '—', 
+      summary: 'TLSv1.2   TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256', 
+      color: 'text-slate-300', severity: 'INFO',
+      type: 'SSL HANDSHAKE', ports: '443',
+      raw: { "ts": 165502.41, "uid": "Cs34f99", "id.orig_h": "10.24.8.19", "id.resp_p": 443, "version": "TLSv1.2", "cipher": "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256" }
     },
     {
-      id: 'Cs34f99', time: '16:55:02.41', log: 'ssl.log', uid: 'Cs34f99',
-      src: '10.24.8.19:443', dst: '—',
-      line1: 'TLS_ECDHE_RSA_WITH_AES', color: 'text-slate-300',
-      parsed: { ts: "16:55:02.41", uid: "Cs34f99", src: "10.24.8.19", version: "TLSv1.2", cipher: "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256" }
+      id: 'Cw91x00', ts: '16:55:01.22', log: 'weird.log', uid: 'Cw91x00', 
+      src: '10.24.3.22', dst: '—', 
+      summary: 'active_connection_reuse', 
+      color: 'text-rose-500', severity: 'SUSPICIOUS',
+      type: 'WEIRD ACTIVITY', ports: '—',
+      raw: { "ts": 165501.22, "uid": "Cw91x00", "id.orig_h": "10.24.3.22", "name": "active_connection_reuse", "notice": false, "peer": "zeek-sensor-02" }
     },
     {
-      id: 'Cd87a32', time: '16:55:03.87', log: 'dns.log', uid: 'Cd87a32',
-      src: '10.24.7.41', dst: '10.24.0.53',
-      line1: 'query: 3fa7b12.c2node.io', color: 'text-slate-300',
-      parsed: { ts: "16:55:03.87", uid: "Cd87a32", src: "10.24.7.41", dst: "10.24.0.53", query: "3fa7b12.tunnel.c2node.io", qtype: "TXT" }
+      id: 'Cn2b211', ts: '16:55:00.94', log: 'notice.log', uid: 'Cn2b211', 
+      src: '10.24.3.22', dst: '—', 
+      summary: 'Scan::Address_Scan\n65 ports scanned', 
+      color: 'text-amber-500', severity: 'HIGH',
+      type: 'NOTICE', ports: '65',
+      raw: { "ts": 165500.94, "uid": "Cn2b211", "src": "10.24.3.22", "notice": "Scan::Address_Scan", "msg": "65 ports scanned", "sub": "remote", "actions": ["Notice::ACTION_LOG"] }
+    },
+    {
+      id: 'Ch9k312', ts: '16:54:59.72', log: 'conn.log', uid: 'Ch9k312', 
+      src: '10.24.18.42:53', dst: '10.24.0.53:53', 
+      summary: 'UDP   512 bytes', 
+      color: 'text-slate-300', severity: 'INFO',
+      type: 'CONNECTION', ports: '53',
+      raw: { "ts": 165459.72, "uid": "Ch9k312", "id.orig_h": "10.24.18.42", "id.orig_p": 53, "id.resp_h": "10.24.0.53", "id.resp_p": 53, "proto": "udp", "orig_bytes": 256, "resp_bytes": 256 }
     },
   ];
 
-  const selectedEvent = zeekEvents.find(e => e.id === selectedEventId) || zeekEvents[1];
+  const selectedEvent = zeekEvents.find(e => e.id === selectedEventId) || zeekEvents[4];
 
   return (
-    <div className="flex flex-col h-full space-y-4">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 shrink-0">
+    <div className="flex flex-col h-full space-y-4 font-mono">
+      
+      {/* SECTION 1 - SENSOR SUMMARY */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">
         {[
           { label: 'EVENTS / SEC', value: '18.4K' },
           { label: 'CONNECTIONS', value: '12,804' },
           { label: 'DNS EVENTS', value: '4,921' },
-          { label: 'SECURITY NOTICES', value: '6' }
+          { label: 'SECURITY NOTICES', value: '6', color: 'text-emerald-400' }
         ].map((stat, i) => (
           <div key={i} className="bg-[#0a0f1c] border border-indigo-900/30 p-3 flex flex-col justify-between">
-            <span className="text-[9px] font-mono text-slate-500 uppercase tracking-widest mb-1">{stat.label}</span>
-            <span className="text-xl font-mono font-light tracking-tight text-slate-200">{stat.value}</span>
+            <span className="text-[9px] text-slate-500 uppercase tracking-widest mb-1">{stat.label}</span>
+            <span className={`text-xl font-light tracking-tight ${stat.color || 'text-slate-200'}`}>{stat.value}</span>
           </div>
         ))}
       </div>
 
-      <div className="bg-[#0a0f1c] border border-indigo-900/30 px-3 md:px-4 py-2 shrink-0 flex flex-col sm:flex-row sm:items-center justify-between text-[9px] md:text-[10px] font-mono uppercase tracking-widest text-slate-400 space-y-3 sm:space-y-0">
-        <div className="flex flex-wrap items-center gap-2 md:gap-4">
-          <div className="flex items-center bg-[#030712] border border-slate-800 rounded px-2 py-1 min-w-[140px] md:min-w-[200px]">
-            <Search className="w-3 h-3 mr-2 text-slate-500" />
-            <input type="text" placeholder="Search logs..." className="bg-transparent border-none outline-none text-slate-300 placeholder-slate-600 w-full" />
+      {/* SECTION 2 - LOG FILTER BAR */}
+      <div className="bg-[#0a0f1c] border border-indigo-900/30 p-2 md:p-3 shrink-0 flex flex-col md:flex-row md:items-center justify-between text-[10px] uppercase tracking-widest text-slate-400 gap-3 md:gap-0">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center space-x-2">
+            <Filter className="w-3.5 h-3.5 text-indigo-400" />
+            <span className="text-slate-300 bg-[#030712] border border-slate-800 px-2 py-1 rounded cursor-pointer hover:border-slate-600">LOG SOURCE: ALL ▼</span>
           </div>
-          <div className="bg-[#030712] border border-slate-800 px-2 py-1 rounded text-slate-300">ALL LOGS ▼</div>
+          <span className="text-slate-300 bg-[#030712] border border-slate-800 px-2 py-1 rounded cursor-pointer hover:border-slate-600">SEVERITY: ALL ▼</span>
+          <span className="text-slate-300 bg-[#030712] border border-slate-800 px-2 py-1 rounded cursor-pointer hover:border-slate-600">PROTOCOL: ALL ▼</span>
+          
+          <div className="flex items-center bg-[#030712] border border-slate-800 rounded px-2 py-1 min-w-[200px]">
+            <Search className="w-3 h-3 mr-2 text-slate-500" />
+            <input type="text" placeholder="Search IP, domain, UID..." className="bg-transparent border-none outline-none text-slate-300 placeholder-slate-600 w-full" />
+          </div>
         </div>
-        <div className="flex items-center space-x-2 md:space-x-4 self-end sm:self-auto">
-          <div className="hidden md:block bg-[#030712] border border-slate-800 px-2 py-1 rounded text-slate-300">Last 15 min ▼</div>
+        <div className="flex items-center space-x-3">
+          <span className="text-slate-300 bg-[#030712] border border-slate-800 px-2 py-1 rounded cursor-pointer hover:border-slate-600">Last 15 min ▼</span>
           <div className="flex items-center text-emerald-400 border border-emerald-900/50 bg-emerald-950/20 px-2 py-1 rounded">
             <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-1.5 animate-pulse"></span>
             LIVE
@@ -826,51 +767,131 @@ function ZeekLogsView() {
         </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-4 flex-1 min-h-[400px]">
+      {/* SECTION 3 & 4 - MAIN LOG EXPLORER & EVENT INSPECTOR */}
+      <div className="flex flex-col lg:flex-row gap-4 shrink-0 min-h-[450px]">
+        
+        {/* SECTION 3 - LIVE ZEEK EVENT STREAM */}
         <div className="flex-1 lg:flex-[0.65] bg-[#0a0f1c] border border-indigo-900/30 flex flex-col overflow-hidden relative">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
           <div className="px-4 py-2.5 border-b border-indigo-900/30 bg-[#060913]/50">
-            <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase">LIVE ZEEK EVENT STREAM</h3>
+            <h3 className="text-[11px] font-bold tracking-widest text-slate-300 uppercase">LIVE ZEEK EVENT STREAM</h3>
           </div>
-          <div className="flex-1 overflow-y-auto bg-[#02040a] p-2 md:p-3 space-y-2 max-h-[300px] lg:max-h-full">
-            {[...zeekEvents].reverse().map((evt) => (
+          
+          <div className="flex-1 overflow-y-auto bg-[#02040a] p-3 space-y-2.5 text-[11px] leading-relaxed">
+            {zeekEvents.map((evt) => (
               <div 
                 key={evt.id}
                 onClick={() => setSelectedEventId(evt.id)}
-                className={`flex flex-col p-2.5 font-mono text-[10px] md:text-[11px] border-l-2 cursor-pointer transition-colors ${
-                  selectedEventId === evt.id ? 'bg-purple-900/20 border-purple-500' : 'border-transparent hover:bg-[#060913]'
+                className={`p-2.5 border-l-2 cursor-pointer transition-colors ${
+                  selectedEventId === evt.id ? 'bg-purple-900/10 border-purple-500' : 'border-transparent hover:bg-slate-800/30'
                 }`}
               >
-                <div className="flex items-center space-x-2 md:space-x-3 mb-1">
-                  <span className="text-slate-500">{evt.time}</span>
+                <div className="flex items-center space-x-3 mb-1">
+                  <span className="text-slate-500">{evt.ts}</span>
                   <span className={`font-bold ${evt.color}`}>[{evt.log}]</span>
-                  <span className="hidden sm:inline text-slate-400 truncate">{evt.line1}</span>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 md:gap-3 text-slate-300">
-                  <span className="text-purple-400/80">{evt.uid}</span>
-                  <span>{evt.src} {evt.dst !== '—' && <span className="text-slate-600">→ {evt.dst}</span>}</span>
+                <div className="text-slate-300 mb-1">
+                  <span className="text-purple-400/80 mr-3">{evt.uid}</span>
+                  {evt.src} {evt.dst !== '—' && <span className="text-slate-500">→ {evt.dst}</span>}
+                </div>
+                <div className="text-slate-400 whitespace-pre-wrap">
+                  {evt.summary}
                 </div>
               </div>
             ))}
+            
+            <div className="p-2.5 flex items-center text-slate-500 text-[10px] mt-4 opacity-70">
+              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-2 animate-pulse"></span>
+              Waiting for next event...
+            </div>
           </div>
         </div>
 
+        {/* SECTION 4 - EVENT INSPECTOR */}
         <div className="flex-1 lg:flex-[0.35] bg-[#0a0f1c] border border-indigo-900/30 flex flex-col overflow-hidden relative">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
           <div className="px-4 py-2.5 border-b border-indigo-900/30 bg-[#060913]/50">
-            <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase">EVENT INSPECTOR</h3>
+            <h3 className="text-[11px] font-bold tracking-widest text-slate-300 uppercase">EVENT INSPECTOR</h3>
           </div>
-          <div className="flex-1 overflow-y-auto p-4 flex flex-col font-mono text-[10px]">
-            <div className="grid grid-cols-2 gap-y-3 mb-4">
-              <div><span className="text-slate-500 block md:inline">UID:</span> <span className="text-purple-400">{selectedEvent.uid}</span></div>
-              <div><span className="text-slate-500 block md:inline">LOG:</span> <span className="text-slate-300">{selectedEvent.log}</span></div>
+          
+          <div className="flex-1 overflow-y-auto p-4 flex flex-col text-[10px]">
+            <div className="grid grid-cols-2 gap-y-3 gap-x-2 mb-6">
+              <div><span className="text-slate-500 block mb-0.5">EVENT TYPE</span> <span className={selectedEvent.color}>{selectedEvent.type}</span></div>
+              <div><span className="text-slate-500 block mb-0.5">LOG SOURCE</span> <span className="text-slate-300">{selectedEvent.log}</span></div>
+              <div><span className="text-slate-500 block mb-0.5">TIMESTAMP</span> <span className="text-slate-300">{selectedEvent.ts}</span></div>
+              <div><span className="text-slate-500 block mb-0.5">CONNECTION UID</span> <span className="text-purple-400">{selectedEvent.uid}</span></div>
+              <div><span className="text-slate-500 block mb-0.5">SOURCE IP</span> <span className="text-slate-300">{selectedEvent.raw['id.orig_h'] || selectedEvent.raw['src'] || '—'}</span></div>
+              <div><span className="text-slate-500 block mb-0.5">DESTINATION</span> <span className="text-slate-300">{selectedEvent.raw['id.resp_h'] || '—'}</span></div>
+              <div className="col-span-2"><span className="text-slate-500 block mb-0.5">DETECTION / MSG</span> <span className="text-slate-300">{selectedEvent.raw['notice'] || selectedEvent.raw['name'] || selectedEvent.raw['query'] || '—'}</span></div>
+              <div><span className="text-slate-500 block mb-0.5">PORTS</span> <span className="text-slate-300">{selectedEvent.ports}</span></div>
+              <div><span className="text-slate-500 block mb-0.5">SEVERITY</span> <span className={`font-bold ${selectedEvent.severity === 'HIGH' ? 'text-amber-500' : selectedEvent.severity === 'SUSPICIOUS' ? 'text-rose-500' : 'text-slate-400'}`}>{selectedEvent.severity}</span></div>
             </div>
-            <pre className="bg-[#02040a] border border-slate-800 p-3 rounded text-[9px] md:text-[10px] text-indigo-300/80 overflow-x-auto flex-1 whitespace-pre-wrap word-break-all">
-              {JSON.stringify(selectedEvent.parsed, null, 2)}
-            </pre>
+
+            <div className="mt-auto">
+              <span className="text-slate-500 block mb-2 uppercase tracking-widest">RAW EVENT</span>
+              <pre className="bg-[#02040a] border border-slate-800 p-3 rounded text-[10px] text-indigo-300/80 overflow-x-auto whitespace-pre-wrap word-break-all mb-4">
+                {JSON.stringify(selectedEvent.raw, null, 2)}
+              </pre>
+
+              <div className="flex space-x-3">
+                <button className="flex-1 flex items-center justify-center bg-[#060913] border border-slate-700 hover:border-slate-500 hover:bg-slate-800 text-slate-300 py-2 rounded transition-colors uppercase tracking-widest">
+                  <Copy className="w-3 h-3 mr-2" /> COPY EVENT
+                </button>
+                <button className="flex-1 flex items-center justify-center bg-purple-900/30 border border-purple-500/50 hover:bg-purple-900/50 text-purple-300 py-2 rounded transition-colors uppercase tracking-widest">
+                  <ActivitySquare className="w-3 h-3 mr-2" /> THREAT STREAM
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* SECTION 5 - LOG SOURCE SUMMARY */}
+      <div className="bg-[#0a0f1c] border border-indigo-900/30 p-3 shrink-0 flex flex-col md:flex-row md:items-center justify-between text-[10px] uppercase tracking-widest gap-3 md:gap-0">
+        <span className="text-slate-500 font-bold hidden lg:block">LOG SOURCES</span>
+        <div className="flex flex-wrap items-center gap-4 lg:gap-8 flex-1 lg:justify-center">
+          <div className="flex items-center"><span className="text-slate-400 w-20">conn.log</span> <span className="text-slate-200 font-bold">12.8K</span></div>
+          <div className="flex items-center"><span className="text-slate-400 w-20">dns.log</span> <span className="text-slate-200 font-bold">4.9K</span></div>
+          <div className="flex items-center"><span className="text-slate-400 w-20">ssl.log</span> <span className="text-slate-200 font-bold">1.8K</span></div>
+          <div className="flex items-center"><span className="text-slate-400 w-20">http.log</span> <span className="text-slate-200 font-bold">0.9K</span></div>
+          <div className="flex items-center"><span className="text-amber-500 w-20">notice.log</span> <span className="text-amber-400 font-bold">6</span></div>
+          <div className="flex items-center"><span className="text-rose-500 w-20">weird.log</span> <span className="text-rose-400 font-bold">4</span></div>
+        </div>
+      </div>
+
+      {/* SECTION 6 - SECURITY CORRELATION */}
+      <div className="shrink-0 flex flex-col">
+        <h3 className="text-[10px] font-bold tracking-widest text-slate-500 uppercase mb-3">RECENT SECURITY CORRELATIONS</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-[#0a0f1c] border border-indigo-900/30 p-3 flex flex-col text-[10px]">
+            <div className="flex justify-between items-start mb-2">
+              <span className="bg-amber-500/20 text-amber-500 border border-amber-500/30 px-1.5 py-0.5 rounded font-bold">HIGH</span>
+              <span className="text-slate-300">10.24.3.22</span>
+            </div>
+            <span className="text-slate-200 mb-0.5">Address Scan (65 ports)</span>
+            <span className="text-slate-500 flex items-center mt-2"><ArrowRight className="w-3 h-3 mr-1" /> Detected by Zeek</span>
+          </div>
+
+          <div className="bg-[#0a0f1c] border border-indigo-900/30 p-3 flex flex-col text-[10px]">
+            <div className="flex justify-between items-start mb-2">
+              <span className="bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-1.5 py-0.5 rounded font-bold">MEDIUM</span>
+              <span className="text-slate-300">10.24.7.41</span>
+            </div>
+            <span className="text-slate-200 mb-0.5">Suspicious DNS TXT query</span>
+            <span className="text-purple-400/80 flex items-center mt-2"><ArrowRight className="w-3 h-3 mr-1" /> Forwarded to ML pipeline</span>
+          </div>
+
+          <div className="bg-[#0a0f1c] border border-indigo-900/30 p-3 flex flex-col text-[10px]">
+            <div className="flex justify-between items-start mb-2">
+              <span className="bg-rose-500/20 text-rose-400 border border-rose-500/30 px-1.5 py-0.5 rounded font-bold">HIGH</span>
+              <span className="text-slate-300">10.24.18.42</span>
+            </div>
+            <span className="text-slate-200 mb-0.5">Abnormal beaconing pattern</span>
+            <span className="text-purple-400 font-bold flex items-center mt-2"><ArrowRight className="w-3 h-3 mr-1" /> Correlated with threat analytics</span>
+          </div>
+        </div>
+      </div>
+
     </div>
   );
 }
