@@ -7,7 +7,7 @@ import {
   Shield, Activity, AlertTriangle, Crosshair, 
   Database, Layout, Terminal, Server, Cpu, 
   Target, Radio, CheckCircle2, ShieldAlert,
-  Search, ArrowRight, Menu, X, Filter, Copy, ExternalLink, ActivitySquare
+  Search, ArrowRight, Menu, X, Filter, Copy, ActivitySquare
 } from 'lucide-react';
 
 // ============================================================================
@@ -575,6 +575,15 @@ function AnalyticsView() {
     { name: 'Anomalous Flow', events: 156, conf: '91.7%' },
   ];
 
+  const modelHealth = [
+    { name: 'Isolation Forest', status: 'READY' },
+    { name: 'Random Forest', status: 'READY' },
+    { name: 'XGBoost', status: 'READY' },
+    { name: 'Autoencoder', status: 'READY' },
+    { name: 'LSTM / DGA', status: 'READY' },
+    { name: 'Ensemble', status: 'ACTIVE', isHighlight: true },
+  ];
+
   return (
     <div className="flex flex-col h-full space-y-4 md:space-y-5">
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4 shrink-0">
@@ -659,6 +668,36 @@ function AnalyticsView() {
               ))}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5 flex-1 min-h-[160px] mt-4">
+        <div className="bg-[#0a0f1c] border border-indigo-900/30 flex flex-col p-4">
+          <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase border-b border-indigo-900/30 pb-3 mb-4">DETECTION IMPACT</h3>
+          <div className="flex-1 flex flex-col justify-center space-y-3">
+            {detectionImpact.map((impact, i) => (
+              <div key={i} className="flex justify-between items-center text-[10px] font-mono border-b border-slate-800/50 pb-2 last:border-0 last:pb-0">
+                <span className="text-slate-300 uppercase tracking-widest w-32">{impact.name}</span>
+                <span className="text-slate-400">{impact.events} events</span>
+                <span className="text-purple-400 font-bold">{impact.conf} conf</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-[#0a0f1c] border border-indigo-900/30 flex flex-col p-4">
+          <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase border-b border-indigo-900/30 pb-3 mb-4">MODEL HEALTH</h3>
+          <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-[10px] font-mono">
+            {modelHealth.map((health, i) => (
+              <div key={i} className="flex items-center justify-between bg-[#060913]/50 px-2 py-1.5 border border-slate-800/80 rounded-sm">
+                <span className="text-slate-400 uppercase tracking-widest truncate mr-2">{health.name}</span>
+                <span className={`flex items-center tracking-wider ${health.isHighlight ? 'text-purple-400' : 'text-emerald-400'}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${health.isHighlight ? 'bg-purple-500' : 'bg-emerald-500'}`}></span>
+                  {health.status}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
