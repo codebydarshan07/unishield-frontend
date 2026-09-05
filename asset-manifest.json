@@ -1,15 +1,15 @@
 {
   "files": {
-    "main.css": "/unishield-frontend/static/css/main.3d7e3a90.css",
-    "main.js": "/unishield-frontend/static/js/main.41ab8330.js",
-    "static/js/453.2ac08586.chunk.js": "/unishield-frontend/static/js/453.2ac08586.chunk.js",
-    "index.html": "/unishield-frontend/index.html",
-    "main.3d7e3a90.css.map": "/unishield-frontend/static/css/main.3d7e3a90.css.map",
-    "main.41ab8330.js.map": "/unishield-frontend/static/js/main.41ab8330.js.map",
-    "453.2ac08586.chunk.js.map": "/unishield-frontend/static/js/453.2ac08586.chunk.js.map"
+    "main.css": "/static/css/main.3d7e3a90.css",
+    "main.js": "/static/js/main.62356fee.js",
+    "static/js/453.2ac08586.chunk.js": "/static/js/453.2ac08586.chunk.js",
+    "index.html": "/index.html",
+    "main.3d7e3a90.css.map": "/static/css/main.3d7e3a90.css.map",
+    "main.62356fee.js.map": "/static/js/main.62356fee.js.map",
+    "453.2ac08586.chunk.js.map": "/static/js/453.2ac08586.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.3d7e3a90.css",
-    "static/js/main.41ab8330.js"
+    "static/js/main.62356fee.js"
   ]
 }
