@@ -3,12 +3,23 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
   PieChart, Pie, Cell, BarChart, Bar, LabelList
 } from 'recharts';
-import { 
-  Shield, Activity, AlertTriangle, Crosshair, 
-  Database, Layout, Terminal, Server, Cpu, 
-  Target, Radio, CheckCircle2, ShieldAlert, HardDrive, Network,
-  Search, ArrowRight
-} from 'lucide-react';
+import {
+  Shield,
+  Activity,
+  ShieldAlert,
+  Layout,
+  Crosshair,
+  Terminal,
+  Server,
+  CheckCircle2,
+  ArrowRight,
+  Database,
+  Cpu,
+  Radio,
+  Target,
+  AlertTriangle,
+  Search
+} from "lucide-react";
 
 // --- SHARED MOCK DATA ---
 const threatActivityData = [
