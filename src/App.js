@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
-  PieChart, Pie, Cell
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer
 } from 'recharts';
 import { 
   Shield, Activity, AlertTriangle, Crosshair, 
@@ -20,35 +19,6 @@ const threatActivityData = [
   { time: '16:45', high: 6, medium: 30, low: 38 },
   { time: '16:55', high: 11, medium: 20, low: 42 },
 ];
-
-const threatDistribution = [
-  { name: 'DGA / DNS', value: 31, color: '#9333ea' },
-  { name: 'Port Scan', value: 24, color: '#6366f1' },
-  { name: 'Beaconing', value: 19, color: '#4f46e5' },
-  { name: 'DoS', value: 15, color: '#e11d48' },
-  { name: 'Anomalous Flow', value: 11, color: '#8b5cf6' },
-];
-
-const overviewAlerts = [
-  { id: 'EVT-9021', severity: 'CRITICAL', source: '10.24.18.42', dest: '10.24.1.10', detection: 'DGA / DNS Anomaly', conf: '98.2%', time: '16:52:31', model: 'Random Forest' },
-  { id: 'EVT-9022', severity: 'HIGH', source: '10.24.21.17', dest: '10.24.1.0/24', detection: 'Port Scan', conf: '92.1%', time: '16:51:48', model: 'Heuristic + RF' },
-  { id: 'EVT-9023', severity: 'HIGH', source: '10.24.19.08', dest: '198.51.100.4', detection: 'Beaconing', conf: '88.3%', time: '16:50:22', model: 'XGBoost FFT' },
-  { id: 'EVT-9024', severity: 'MEDIUM', source: '10.24.14.63', dest: '10.24.0.53', detection: 'Anomalous Flow', conf: '81.4%', time: '16:49:57', model: 'Isolation Forest' },
-  { id: 'EVT-9025', severity: 'MEDIUM', source: '10.24.22.91', dest: '10.24.0.53', detection: 'DNS Anomaly', conf: '79.9%', time: '16:48:36', model: 'CNN/LSTM' },
-  { id: 'EVT-9026', severity: 'LOW', source: '10.24.8.19', dest: 'External', detection: 'Encrypted Payload', conf: '65.2%', time: '16:45:11', model: 'Autoencoder' },
-  { id: 'EVT-9027', severity: 'LOW', source: '10.24.5.11', dest: 'External', detection: 'Mismatched Cert', conf: '61.8%', time: '16:42:05', model: 'JA3 Fingerprint' },
-];
-
-// --- HELPER FUNCTION ---
-const getSeverityColor = (severity) => {
-  switch(severity) {
-    case 'CRITICAL': return 'bg-rose-500';
-    case 'HIGH': return 'bg-orange-500';
-    case 'MEDIUM': return 'bg-yellow-500';
-    case 'LOW': return 'bg-slate-500';
-    default: return 'bg-slate-500';
-  }
-};
 
 // --- MAIN APPLICATION SHELL ---
 export default function UniShieldDashboard() {
@@ -337,7 +307,7 @@ function TelemetryView() {
 }
 
 // --- UTILITY COMPONENTS ---
-function SidebarBtn({ icon, label, active, badge, pulse, onClick }) {
+function SidebarBtn({ icon, label, active, badge, onClick }) {
   return (
     <button onClick={onClick} className={`w-full flex items-center justify-between px-4 py-2.5 font-mono text-[10px] tracking-widest transition-all ${active ? 'bg-purple-900/20 text-purple-400 border-l-2 border-purple-500' : 'text-slate-500 hover:bg-[#0a0e1c] hover:text-slate-300 border-l-2 border-transparent'}`}>
       <div className="flex items-center space-x-3"><span className="w-3.5 h-3.5 opacity-80">{icon}</span><span className="truncate">{label}</span></div>
