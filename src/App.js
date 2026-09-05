@@ -6,8 +6,8 @@ import {
 import { 
   Shield, Activity, AlertTriangle, Crosshair, 
   Database, Layout, Terminal, Server, Cpu, 
-  Target, Radio, CheckCircle2, ShieldAlert,
-  Search, Filter, Copy, ExternalLink, ArrowRight
+  Target, Radio, CheckCircle2, ShieldAlert, HardDrive, Network,
+  Search, ArrowRight
 } from 'lucide-react';
 
 // --- SHARED MOCK DATA ---
