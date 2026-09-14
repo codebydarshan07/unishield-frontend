@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, BarChart, Bar, LabelList
+  PieChart, Pie, Cell, BarChart, Bar, LabelList, ReferenceLine, Label
 } from 'recharts';
 import { 
   Shield, Activity, AlertTriangle, Crosshair, 
@@ -74,7 +74,7 @@ const getSeverityColor = (severity) => {
 // ============================================================================
 export default function UniShieldDashboard() {
   const [pulse, setPulse] = useState(false);
-  const [activePage, setActivePage] = useState('stream'); 
+  const [activePage, setActivePage] = useState('analytics'); 
   const [analyzingEventId, setAnalyzingEventId] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
@@ -579,7 +579,7 @@ function LiveStreamView({ navigateTo }) {
 }
 
 // ============================================================================
-// THREAT ANALYTICS
+// THREAT ANALYTICS - CHART REDESIGN
 // ============================================================================
 function AnalyticsView({ analyzingEventId, navigateTo }) {
   const analyzeRef = useRef(null);
@@ -590,6 +590,19 @@ function AnalyticsView({ analyzingEventId, navigateTo }) {
       analyzeRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }, [analyzedEvent]);
+
+  // CUSTOM TOOLTIP FOR LATENCY CHART
+  const CustomLatencyTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-[#0a0f1c] border border-purple-500/50 p-2 shadow-lg rounded-sm z-[100]">
+          <p className="text-[10px] font-mono text-slate-200 font-bold mb-1 uppercase tracking-widest">{label}</p>
+          <p className="text-[10px] font-mono text-purple-400 m-0">Latency: <span className="font-bold text-slate-100">{payload[0].value} ms</span></p>
+        </div>
+      );
+    }
+    return null;
+  };
 
   const featureContribution = [
     { name: 'Source Entropy', value: 31 },
@@ -716,25 +729,68 @@ function AnalyticsView({ analyzingEventId, navigateTo }) {
           </div>
         </div>
 
+        {/* ========================================================= */}
+        {/* MODIFIED COMPONENT: MODEL INFERENCE LATENCY CHART         */}
+        {/* ========================================================= */}
         <div className="bg-[#0a0f1c] border border-indigo-900/30 flex flex-col p-4">
-          <div className="flex flex-col border-b border-indigo-900/30 pb-3 mb-2">
+          <div className="flex flex-col border-b border-indigo-900/30 pb-3 mb-4">
             <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase">MODEL INFERENCE LATENCY</h3>
             <span className="text-[9px] font-mono text-purple-400/80 tracking-widest uppercase mt-0.5">LOWER IS BETTER</span>
           </div>
-          <div className="flex-1 min-h-[150px] pt-4">
+          <div className="flex-1 min-h-[160px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={inferenceLatency} margin={{ top: 20, right: 0, left: -25, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="2 4" stroke="#1e1b4b" vertical={false} />
-                <XAxis dataKey="name" stroke="#475569" fontSize={9} tickLine={false} axisLine={false} interval={0} fontFamily="monospace" />
-                <YAxis stroke="#475569" fontSize={10} tickLine={false} axisLine={false} tickFormatter={() => ``} fontFamily="monospace" />
-                <RechartsTooltip cursor={{fill: '#060913'}} contentStyle={{ backgroundColor: '#030712', border: '1px solid #312e81', fontSize: '11px', fontFamily: 'monospace', color: '#f8fafc' }} formatter={(value) => [`${value} ms`, 'Latency']} />
-                <Bar dataKey="ms" fill="#9333ea" radius={[0, 0, 0, 0]} maxBarSize={45}>
-                  <LabelList dataKey="ms" position="top" fill="#e2e8f0" fontSize={9} fontFamily="monospace" formatter={(val) => `${val} ms`} />
+              <BarChart data={inferenceLatency} margin={{ top: 25, right: 10, left: 5, bottom: 10 }}>
+                {/* 1. Subtle navy plotting background via grid fill, subtle thin horizontal lines */}
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} fill="#0f1423" />
+                
+                {/* 7. Axis Labels styling */}
+                <XAxis 
+                  dataKey="name" 
+                  stroke="#475569" 
+                  fontSize={9} 
+                  tickLine={false} 
+                  axisLine={false} 
+                  tick={{fill: '#cbd5e1', fontWeight: 600}} 
+                  interval={0} 
+                  fontFamily="monospace" 
+                  dy={10} 
+                />
+                
+                {/* 2. Grid Ticks set roughly to 0, 25, 50, 75, 100 */}
+                <YAxis 
+                  ticks={[0, 25, 50, 75, 100]} 
+                  domain={[0, 100]} 
+                  stroke="#475569" 
+                  fontSize={9} 
+                  tickLine={false} 
+                  axisLine={false} 
+                  tick={{fill: '#64748b'}} 
+                  tickFormatter={(val) => `${val} ms`} 
+                  fontFamily="monospace" 
+                  width={45} 
+                />
+                
+                {/* 5 & 6. Tooltip Bug Fix and Design (cursor=false prevents the black block, custom tooltip for style) */}
+                <RechartsTooltip content={<CustomLatencyTooltip />} cursor={false} />
+                
+                {/* 10. Optional Micro-Improvement (AVG line) */}
+                <ReferenceLine y={42} stroke="#475569" strokeDasharray="3 3" strokeOpacity={0.8}>
+                  <Label value="AVG 42 ms" position="insideTopLeft" fill="#64748b" fontSize={9} fontFamily="monospace" offset={6} />
+                </ReferenceLine>
+                
+                {/* 3 & 4. Bar styling (rounded tops, max width) & Labels */}
+                <Bar dataKey="ms" radius={[4, 4, 0, 0]} maxBarSize={38}>
+                  {inferenceLatency.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.name === 'LSTM' ? '#be123c' : '#7c3aed'} />
+                  ))}
+                  <LabelList dataKey="ms" position="top" fill="#f8fafc" fontSize={10} fontFamily="monospace" formatter={(val) => `${val} ms`} offset={8} />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
+        {/* ========================================================= */}
+
       </div>
 
       <div className="bg-[#0a0f1c] border border-indigo-900/30 shrink-0">
