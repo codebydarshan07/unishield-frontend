@@ -100,7 +100,6 @@ const formatDateTime = (date) => {
 function simulateAIAnalysis(event, allEvents) {
   if (!event) return null;
   
-  // Generate stable deterministic demo data based on event ID
   const seed = event.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const isMalicious = ['CRITICAL', 'HIGH', 'SUSPICIOUS'].includes(event.severity);
 
@@ -514,7 +513,7 @@ function ExecutiveView() {
 // LIVE THREAT STREAM
 // ============================================================================
 function LiveStreamView({ navigateTo, globalSelectedEventId, setGlobalSelectedEventId, handleFeedback, analystFeedback }) {
-  const selectedEvent = globalEvents.find(e => e.id === globalSelectedEventId) || globalEvents[0];
+  const selectedEvent = globalEventStore.find(e => e.id === globalSelectedEventId) || globalEventStore[0];
 
   return (
     <div className="flex flex-col h-full space-y-4 md:space-y-5">
