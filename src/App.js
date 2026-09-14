@@ -69,6 +69,18 @@ const getSeverityColor = (severity) => {
   }
 };
 
+const formatDateTime = (date) => {
+  const pad = (num) => num.toString().padStart(2, '0');
+  const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  const d = pad(date.getDate());
+  const m = months[date.getMonth()];
+  const y = date.getFullYear();
+  const hh = pad(date.getHours());
+  const mm = pad(date.getMinutes());
+  const ss = pad(date.getSeconds());
+  return `${d} ${m} ${y}    ${hh}:${mm}:${ss}`;
+};
+
 // ============================================================================
 // MAIN APPLICATION SHELL & ROUTING ENGINE
 // ============================================================================
@@ -77,10 +89,16 @@ export default function UniShieldDashboard() {
   const [activePage, setActivePage] = useState('analytics'); 
   const [analyzingEventId, setAnalyzingEventId] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
   
   useEffect(() => {
     const interval = setInterval(() => setPulse(prev => !prev), 2000);
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
   }, []);
 
   useEffect(() => {
@@ -115,7 +133,7 @@ export default function UniShieldDashboard() {
           <span>[ RESTRICTED ] CONFIDENTIAL</span>
         </div>
         <div>
-          <span className="text-slate-400">05 SEP 2026</span>
+          <span className="text-slate-400 whitespace-pre">{formatDateTime(currentTime)}</span>
         </div>
       </header>
 
@@ -212,7 +230,7 @@ export default function UniShieldDashboard() {
             <div className="text-[9px] md:text-[10px] font-mono text-slate-500 tracking-widest uppercase hidden sm:flex items-center space-x-4">
               {activePage === 'logs' ? (
                 <>
-                  <span>Last update: 16:55:04</span>
+                  <span>Last update: {pad(currentTime.getHours())}:{pad(currentTime.getMinutes())}:{pad(currentTime.getSeconds())}</span>
                   <span className="flex items-center text-emerald-400 border border-emerald-900/50 bg-emerald-950/20 px-2 py-1 rounded">
                     <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-2 animate-pulse"></span>
                     ● LIVE
@@ -245,6 +263,10 @@ export default function UniShieldDashboard() {
       </div>
     </div>
   );
+}
+
+function pad(num) {
+  return num.toString().padStart(2, '0');
 }
 
 // ============================================================================
@@ -579,7 +601,7 @@ function LiveStreamView({ navigateTo }) {
 }
 
 // ============================================================================
-// THREAT ANALYTICS - CHART REDESIGN
+// THREAT ANALYTICS
 // ============================================================================
 function AnalyticsView({ analyzingEventId, navigateTo }) {
   const analyzeRef = useRef(null);
@@ -591,7 +613,6 @@ function AnalyticsView({ analyzingEventId, navigateTo }) {
     }
   }, [analyzedEvent]);
 
-  // CUSTOM TOOLTIP FOR LATENCY CHART
   const CustomLatencyTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
@@ -662,7 +683,6 @@ function AnalyticsView({ analyzingEventId, navigateTo }) {
   return (
     <div className="flex flex-col h-full space-y-4 md:space-y-5">
       
-      {/* CONTEXTUAL EVENT BANNER */}
       {analyzedEvent && (
         <div ref={analyzeRef} className="bg-[#0a0f1c] border border-purple-500/50 p-4 shrink-0 shadow-[0_0_15px_rgba(168,85,247,0.15)] relative overflow-hidden">
           <div className="absolute top-0 left-0 w-1 h-full bg-purple-500"></div>
@@ -729,9 +749,6 @@ function AnalyticsView({ analyzingEventId, navigateTo }) {
           </div>
         </div>
 
-        {/* ========================================================= */}
-        {/* MODIFIED COMPONENT: MODEL INFERENCE LATENCY CHART         */}
-        {/* ========================================================= */}
         <div className="bg-[#0a0f1c] border border-indigo-900/30 flex flex-col p-4">
           <div className="flex flex-col border-b border-indigo-900/30 pb-3 mb-4">
             <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase">MODEL INFERENCE LATENCY</h3>
@@ -740,45 +757,13 @@ function AnalyticsView({ analyzingEventId, navigateTo }) {
           <div className="flex-1 min-h-[160px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={inferenceLatency} margin={{ top: 25, right: 10, left: 5, bottom: 10 }}>
-                {/* 1. Subtle navy plotting background via grid fill, subtle thin horizontal lines */}
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} fill="#0f1423" />
-                
-                {/* 7. Axis Labels styling */}
-                <XAxis 
-                  dataKey="name" 
-                  stroke="#475569" 
-                  fontSize={9} 
-                  tickLine={false} 
-                  axisLine={false} 
-                  tick={{fill: '#cbd5e1', fontWeight: 600}} 
-                  interval={0} 
-                  fontFamily="monospace" 
-                  dy={10} 
-                />
-                
-                {/* 2. Grid Ticks set roughly to 0, 25, 50, 75, 100 */}
-                <YAxis 
-                  ticks={[0, 25, 50, 75, 100]} 
-                  domain={[0, 100]} 
-                  stroke="#475569" 
-                  fontSize={9} 
-                  tickLine={false} 
-                  axisLine={false} 
-                  tick={{fill: '#64748b'}} 
-                  tickFormatter={(val) => `${val} ms`} 
-                  fontFamily="monospace" 
-                  width={45} 
-                />
-                
-                {/* 5 & 6. Tooltip Bug Fix and Design (cursor=false prevents the black block, custom tooltip for style) */}
+                <XAxis dataKey="name" stroke="#475569" fontSize={9} tickLine={false} axisLine={false} tick={{fill: '#cbd5e1', fontWeight: 600}} interval={0} fontFamily="monospace" dy={10} />
+                <YAxis ticks={[0, 25, 50, 75, 100]} domain={[0, 100]} stroke="#475569" fontSize={9} tickLine={false} axisLine={false} tick={{fill: '#64748b'}} tickFormatter={(val) => `${val} ms`} fontFamily="monospace" width={45} />
                 <RechartsTooltip content={<CustomLatencyTooltip />} cursor={false} />
-                
-                {/* 10. Optional Micro-Improvement (AVG line) */}
                 <ReferenceLine y={42} stroke="#475569" strokeDasharray="3 3" strokeOpacity={0.8}>
                   <Label value="AVG 42 ms" position="insideTopLeft" fill="#64748b" fontSize={9} fontFamily="monospace" offset={6} />
                 </ReferenceLine>
-                
-                {/* 3 & 4. Bar styling (rounded tops, max width) & Labels */}
                 <Bar dataKey="ms" radius={[4, 4, 0, 0]} maxBarSize={38}>
                   {inferenceLatency.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.name === 'LSTM' ? '#be123c' : '#7c3aed'} />
@@ -789,8 +774,6 @@ function AnalyticsView({ analyzingEventId, navigateTo }) {
             </ResponsiveContainer>
           </div>
         </div>
-        {/* ========================================================= */}
-
       </div>
 
       <div className="bg-[#0a0f1c] border border-indigo-900/30 shrink-0">
