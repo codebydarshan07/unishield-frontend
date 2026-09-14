@@ -51,6 +51,17 @@ const sharedLiveDetections = [
   { id: 'EVT-9027', severity: 'LOW', title: 'Mismatched Cert', src: '10.24.5.11', dst: 'External', engine: 'JA3 Fingerprint', conf: '61.8%', time: '16:42:05', features: { entropy: "LOW", arrival: "LOW", fanOut: "LOW", certMismatch: "HIGH" } },
 ];
 
+const zeekEventsData = [
+  { id: 'CjH2u123', ts: '16:55:04.12', log: 'conn.log', uid: 'CjH2u123', src: '10.24.5.18:54210', dst: '10.24.1.10:80', summary: 'TCP   14280 bytes   duration 0.82s', color: 'text-slate-300', severity: 'INFO', title: 'CONNECTION', ports: '80', features: { bytes: 'MED', duration: 'LOW' }, raw: { "ts": 165504.12, "uid": "CjH2u123", "id.orig_h": "10.24.5.18", "id.orig_p": 54210, "id.resp_h": "10.24.1.10", "id.resp_p": 80, "proto": "tcp", "duration": 0.82, "orig_bytes": 1024, "resp_bytes": 14280 } },
+  { id: 'Cd87a32', ts: '16:55:03.87', log: 'dns.log', uid: 'Cd87a32', src: '10.24.7.41', dst: '10.24.0.53', summary: 'query: 3fa7b12.tunnel.c2node.io\ntype: TXT   status: NOERROR', color: 'text-slate-300', severity: 'INFO', title: 'DNS QUERY', ports: '53', features: { entropy: 'MED', dnsType: 'TXT' }, raw: { "ts": 165503.87, "uid": "Cd87a32", "id.orig_h": "10.24.7.41", "id.resp_h": "10.24.0.53", "query": "3fa7b12.tunnel.c2node.io", "qtype_name": "TXT", "rcode_name": "NOERROR" } },
+  { id: 'Cs34f99', ts: '16:55:02.41', log: 'ssl.log', uid: 'Cs34f99', src: '10.24.8.19:443', dst: '—', summary: 'TLSv1.2   TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256', color: 'text-slate-300', severity: 'INFO', title: 'SSL HANDSHAKE', ports: '443', features: { version: 'TLSv1.2' }, raw: { "ts": 165502.41, "uid": "Cs34f99", "id.orig_h": "10.24.8.19", "id.resp_p": 443, "version": "TLSv1.2", "cipher": "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256" } },
+  { id: 'Cw91x00', ts: '16:55:01.22', log: 'weird.log', uid: 'Cw91x00', src: '10.24.3.22', dst: '—', summary: 'active_connection_reuse', color: 'text-rose-500', severity: 'SUSPICIOUS', title: 'WEIRD ACTIVITY', ports: '—', features: { weirdName: 'HIGH' }, raw: { "ts": 165501.22, "uid": "Cw91x00", "id.orig_h": "10.24.3.22", "name": "active_connection_reuse", "notice": false, "peer": "zeek-sensor-02" } },
+  { id: 'Cn2b211', ts: '16:55:00.94', log: 'notice.log', uid: 'Cn2b211', src: '10.24.3.22', dst: '—', summary: 'Scan::Address_Scan\n65 ports scanned', color: 'text-amber-500', severity: 'HIGH', title: 'NOTICE', ports: '65', features: { fanOut: 'HIGH', scanActivity: 'HIGH' }, raw: { "ts": 165500.94, "uid": "Cn2b211", "src": "10.24.3.22", "notice": "Scan::Address_Scan", "msg": "65 ports scanned", "sub": "remote", "actions": ["Notice::ACTION_LOG"] } },
+  { id: 'Ch9k312', ts: '16:54:59.72', log: 'conn.log', uid: 'Ch9k312', src: '10.24.18.42:53', dst: '10.24.0.53:53', summary: 'UDP   512 bytes', color: 'text-slate-300', severity: 'INFO', title: 'CONNECTION', ports: '53', features: { bytes: 'LOW' }, raw: { "ts": 165459.72, "uid": "Ch9k312", "id.orig_h": "10.24.18.42", "id.orig_p": 53, "id.resp_h": "10.24.0.53", "id.resp_p": 53, "proto": "udp", "orig_bytes": 256, "resp_bytes": 256 } },
+];
+
+const globalEventStore = [...sharedLiveDetections, ...zeekEventsData];
+
 const topSources = [
   { ip: '10.24.18.42', count: 312, width: '100%' },
   { ip: '10.24.21.17', count: 241, width: '77%' },
@@ -62,9 +73,11 @@ const topSources = [
 const getSeverityColor = (severity) => {
   switch(severity) {
     case 'CRITICAL': return 'bg-rose-500';
+    case 'SUSPICIOUS': return 'bg-rose-500';
     case 'HIGH': return 'bg-orange-500';
     case 'MEDIUM': return 'bg-yellow-500';
     case 'LOW': return 'bg-slate-500';
+    case 'INFO': return 'bg-slate-400';
     default: return 'bg-slate-500';
   }
 };
@@ -82,12 +95,50 @@ const formatDateTime = (date) => {
 };
 
 // ============================================================================
+// DEMO AI PIPELINE (Deterministic Prototype Inference)
+// ============================================================================
+function simulateAIAnalysis(event, allEvents) {
+  if (!event) return null;
+  
+  // Generate stable deterministic demo data based on event ID
+  const seed = event.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const isMalicious = ['CRITICAL', 'HIGH', 'SUSPICIOUS'].includes(event.severity);
+
+  const features = Object.entries(event.features || { entropy: 'HIGH', payload: 'MED' }).map(([k, v]) => ({
+      name: k.replace(/([A-Z])/g, ' $1').trim(),
+      value: v === 'HIGH' ? (30 + (seed % 10)) : v === 'MED' ? (15 + (seed % 5)) : (5 + (seed % 3))
+  }));
+
+  const srcIp = event.src ? event.src.split(':')[0] : '10.24.18.42';
+
+  const correlated = allEvents.filter(e => {
+     const eSrc = e.src ? e.src.split(':')[0] : '';
+     return eSrc === srcIp && e.id !== event.id;
+  }).slice(0, 3);
+
+  return {
+     verdict: isMalicious ? 'MALICIOUS' : 'ANOMALOUS',
+     confidence: event.conf || `${(85 + (seed % 14)).toFixed(1)}%`,
+     models: [
+       { name: 'Isolation Forest', decision: 'ANOMALOUS', conf: (85 + (seed % 10)).toFixed(1) + '%' },
+       { name: 'Random Forest', decision: isMalicious ? 'MALICIOUS' : 'ANOMALOUS', conf: (90 + (seed % 8)).toFixed(1) + '%' },
+       { name: 'XGBoost', decision: isMalicious ? 'MALICIOUS' : 'ANOMALOUS', conf: (88 + (seed % 9)).toFixed(1) + '%' },
+       { name: 'Autoencoder', decision: 'ANOMALOUS', conf: (80 + (seed % 15)).toFixed(1) + '%' },
+       { name: 'LSTM / DGA', decision: isMalicious ? 'MALICIOUS' : 'BENIGN', conf: (92 + (seed % 7)).toFixed(1) + '%' },
+     ],
+     features: features.sort((a, b) => b.value - a.value),
+     correlated: correlated
+  };
+}
+
+// ============================================================================
 // MAIN APPLICATION SHELL & ROUTING ENGINE
 // ============================================================================
 export default function UniShieldDashboard() {
   const [pulse, setPulse] = useState(false);
-  const [activePage, setActivePage] = useState('analytics'); 
-  const [analyzingEventId, setAnalyzingEventId] = useState(null);
+  const [activePage, setActivePage] = useState('stream'); 
+  const [globalSelectedEventId, setGlobalSelectedEventId] = useState('EVT-9021');
+  const [analystFeedback, setAnalystFeedback] = useState({}); 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   
@@ -105,20 +156,27 @@ export default function UniShieldDashboard() {
     const handlePopState = (e) => {
       if (e.state) {
         setActivePage(e.state.page || 'stream');
-        setAnalyzingEventId(e.state.eventId || null);
+        if (e.state.eventId) setGlobalSelectedEventId(e.state.eventId);
       }
     };
     window.addEventListener('popstate', handlePopState);
-    window.history.replaceState({ page: activePage, eventId: analyzingEventId }, '');
+    window.history.replaceState({ page: activePage, eventId: globalSelectedEventId }, '');
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [activePage, analyzingEventId]);
+  }, [activePage, globalSelectedEventId]);
 
   const navigateTo = (page, eventId = null) => {
     setActivePage(page);
-    setAnalyzingEventId(eventId);
+    if (eventId) setGlobalSelectedEventId(eventId);
     const query = eventId ? `?page=${page}&event=${eventId}` : `?page=${page}`;
     window.history.pushState({ page, eventId }, '', query);
     setMobileMenuOpen(false);
+  };
+
+  const handleFeedback = (eventId, label) => {
+    setAnalystFeedback(prev => ({
+      ...prev,
+      [eventId]: { label, timestamp: new Date().toISOString(), source: 'analyst' }
+    }));
   };
 
   return (
@@ -253,9 +311,9 @@ export default function UniShieldDashboard() {
           <div className="flex-1 overflow-y-auto p-4 md:p-5">
             <div className="flex flex-col space-y-4 md:space-y-5 min-h-full max-w-[1600px] mx-auto pb-6">
               {activePage === 'overview' && <ExecutiveView />}
-              {activePage === 'stream' && <LiveStreamView navigateTo={navigateTo} />}
-              {activePage === 'analytics' && <AnalyticsView analyzingEventId={analyzingEventId} navigateTo={navigateTo} />}
-              {activePage === 'logs' && <ZeekLogsView navigateTo={navigateTo} />}
+              {activePage === 'stream' && <LiveStreamView navigateTo={navigateTo} globalSelectedEventId={globalSelectedEventId} setGlobalSelectedEventId={setGlobalSelectedEventId} handleFeedback={handleFeedback} analystFeedback={analystFeedback} />}
+              {activePage === 'analytics' && <AnalyticsView globalSelectedEventId={globalSelectedEventId} navigateTo={navigateTo} />}
+              {activePage === 'logs' && <ZeekLogsView navigateTo={navigateTo} globalSelectedEventId={globalSelectedEventId} setGlobalSelectedEventId={setGlobalSelectedEventId} handleFeedback={handleFeedback} analystFeedback={analystFeedback} />}
               {activePage === 'telemetry' && <TelemetryView />}
             </div>
           </div>
@@ -455,9 +513,8 @@ function ExecutiveView() {
 // ============================================================================
 // LIVE THREAT STREAM
 // ============================================================================
-function LiveStreamView({ navigateTo }) {
-  const [selectedEventId, setSelectedEventId] = useState(sharedLiveDetections[0].id);
-  const selectedEvent = sharedLiveDetections.find(e => e.id === selectedEventId) || sharedLiveDetections[0];
+function LiveStreamView({ navigateTo, globalSelectedEventId, setGlobalSelectedEventId, handleFeedback, analystFeedback }) {
+  const selectedEvent = globalEvents.find(e => e.id === globalSelectedEventId) || globalEvents[0];
 
   return (
     <div className="flex flex-col h-full space-y-4 md:space-y-5">
@@ -485,7 +542,7 @@ function LiveStreamView({ navigateTo }) {
           
           <div className="flex-1 overflow-y-auto p-2 md:p-3 space-y-2 max-h-[300px] lg:max-h-full">
             {sharedLiveDetections.map((evt) => {
-              const isSelected = evt.id === selectedEventId;
+              const isSelected = evt.id === globalSelectedEventId;
               const badgeColor = evt.severity === 'CRITICAL' ? 'bg-rose-500/20 text-rose-400 border-rose-500/40' :
                                  evt.severity === 'HIGH' ? 'bg-orange-500/20 text-orange-400 border-orange-500/40' :
                                  evt.severity === 'MEDIUM' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/40' :
@@ -494,7 +551,7 @@ function LiveStreamView({ navigateTo }) {
               return (
                 <div 
                   key={evt.id}
-                  onClick={() => setSelectedEventId(evt.id)}
+                  onClick={() => setGlobalSelectedEventId(evt.id)}
                   className={`flex items-center justify-between p-2.5 font-mono text-[11px] border cursor-pointer transition-colors ${
                     isSelected ? 'bg-purple-900/20 border-purple-500/60 shadow-[0_0_10px_rgba(147,51,234,0.15)]' : 'bg-[#030712]/50 border-indigo-900/20 hover:border-indigo-900/50'
                   }`}
@@ -531,16 +588,16 @@ function LiveStreamView({ navigateTo }) {
               <div className="text-sm md:text-base font-bold text-slate-100 uppercase tracking-wide mb-3">{selectedEvent.title}</div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-2 text-slate-400 mb-4 pb-3 border-b border-indigo-900/30">
                 <div>SEVERITY: <span className="text-rose-400 font-bold">{selectedEvent.severity}</span></div>
-                <div>TIMESTAMP: <span className="text-slate-300">{selectedEvent.time}</span></div>
+                <div>TIMESTAMP: <span className="text-slate-300">{selectedEvent.time || selectedEvent.ts}</span></div>
                 <div className="sm:col-span-2 truncate">SOURCE: <span className="text-slate-200">{selectedEvent.src}</span></div>
                 <div className="sm:col-span-2 truncate">TARGET: <span className="text-slate-200">{selectedEvent.dst}</span></div>
-                <div>ENGINE: <span className="text-purple-400">{selectedEvent.engine}</span></div>
-                <div>CONFIDENCE: <span className="text-emerald-400">{selectedEvent.conf}</span></div>
+                <div>ENGINE: <span className="text-purple-400">{selectedEvent.engine || 'Zeek Rules'}</span></div>
+                <div>CONFIDENCE: <span className="text-emerald-400">{selectedEvent.conf || '100%'}</span></div>
               </div>
               <div>
                 <span className="block text-[9px] text-slate-500 uppercase tracking-widest mb-2">DETECTION FEATURES</span>
                 <div className="grid grid-cols-2 gap-1.5 text-[9px]">
-                  {Object.entries(selectedEvent.features).map(([key, val]) => (
+                  {Object.entries(selectedEvent.features || {}).map(([key, val]) => (
                     <div key={key} className="bg-[#030712] p-1.5 rounded border border-slate-800 flex justify-between">
                       <span className="text-slate-500 uppercase truncate pr-2">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
                       <span className={`font-bold ${val === 'HIGH' ? 'text-rose-400' : val === 'MED' ? 'text-amber-400' : 'text-slate-300'}`}>{val}</span>
@@ -550,12 +607,35 @@ function LiveStreamView({ navigateTo }) {
               </div>
             </div>
             
-            <button 
-              onClick={() => navigateTo('analytics', selectedEvent.id)}
-              className="w-full mt-4 bg-purple-900/30 hover:bg-purple-900/50 border border-purple-500/50 text-purple-300 text-[10px] font-mono tracking-widest uppercase py-2 rounded transition-all active:scale-[0.98] text-center shadow-[0_0_10px_rgba(168,85,247,0.1)] hover:shadow-[0_0_15px_rgba(168,85,247,0.2)]"
-            >
-              [ VIEW IN THREAT ANALYTICS ]
-            </button>
+            <div className="mt-4 flex flex-col space-y-2">
+              <button 
+                onClick={() => navigateTo('analytics', selectedEvent.id)}
+                className="w-full bg-purple-900/30 hover:bg-purple-900/50 border border-purple-500/50 text-purple-300 text-[10px] font-mono tracking-widest uppercase py-2 rounded transition-all active:scale-[0.98] text-center shadow-[0_0_10px_rgba(168,85,247,0.1)] hover:shadow-[0_0_15px_rgba(168,85,247,0.2)]"
+              >
+                [ VIEW IN THREAT ANALYTICS ]
+              </button>
+              
+              <div className="flex space-x-2">
+                <button 
+                  onClick={() => handleFeedback(selectedEvent.id, 'CONFIRMED_THREAT')}
+                  className="flex-1 bg-rose-900/20 hover:bg-rose-900/40 border border-rose-500/40 text-rose-300 text-[9px] font-mono tracking-widest uppercase py-1.5 rounded transition-all active:scale-[0.98] text-center"
+                >
+                  [ CONFIRM THREAT ]
+                </button>
+                <button 
+                  onClick={() => handleFeedback(selectedEvent.id, 'FALSE_POSITIVE')}
+                  className="flex-1 bg-slate-800/40 hover:bg-slate-700/50 border border-slate-600/50 text-slate-300 text-[9px] font-mono tracking-widest uppercase py-1.5 rounded transition-all active:scale-[0.98] text-center"
+                >
+                  [ FALSE POSITIVE ]
+                </button>
+              </div>
+
+              {analystFeedback[selectedEvent.id] && (
+                <div className="text-[9px] font-mono text-center tracking-widest uppercase text-emerald-400 mt-1">
+                  STATUS: {analystFeedback[selectedEvent.id].label.replace('_', ' ')}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -603,9 +683,12 @@ function LiveStreamView({ navigateTo }) {
 // ============================================================================
 // THREAT ANALYTICS
 // ============================================================================
-function AnalyticsView({ analyzingEventId, navigateTo }) {
+function AnalyticsView({ globalSelectedEventId, navigateTo }) {
   const analyzeRef = useRef(null);
-  const analyzedEvent = analyzingEventId ? sharedLiveDetections.find(e => e.id === analyzingEventId) : null;
+  
+  // Single source of truth lookup
+  const analyzedEvent = globalSelectedEventId ? globalEventStore.find(e => e.id === globalSelectedEventId) : null;
+  const aiResult = analyzedEvent ? simulateAIAnalysis(analyzedEvent, globalEventStore) : null;
 
   useEffect(() => {
     if (analyzedEvent && analyzeRef.current) {
@@ -625,7 +708,7 @@ function AnalyticsView({ analyzingEventId, navigateTo }) {
     return null;
   };
 
-  const featureContribution = [
+  const defaultFeatureContribution = [
     { name: 'Source Entropy', value: 31 },
     { name: 'Inter-Arrival Variance', value: 24 },
     { name: 'Port Fan-out Ratio', value: 19 },
@@ -649,14 +732,14 @@ function AnalyticsView({ analyzingEventId, navigateTo }) {
     { name: 'LSTM (DGA)', acc: '98.1%', prec: '97.5%', rec: '96.9%', lat: '87 ms', best: true },
   ];
 
-  const detectionImpact = [
+  const defaultDetectionImpact = [
     { name: 'DGA / DNS', events: 312, conf: '96.4%' },
     { name: 'Port Scanning', events: 241, conf: '94.8%' },
     { name: 'Beaconing', events: 198, conf: '93.1%' },
     { name: 'Anomalous Flow', events: 156, conf: '91.7%' },
   ];
 
-  const modelHealth = [
+  const defaultModelHealth = [
     { name: 'Isolation Forest', status: 'READY' },
     { name: 'Random Forest', status: 'READY' },
     { name: 'XGBoost', status: 'READY' },
@@ -665,24 +748,13 @@ function AnalyticsView({ analyzingEventId, navigateTo }) {
     { name: 'Ensemble', status: 'ACTIVE', isHighlight: true },
   ];
 
-  if (analyzingEventId && !analyzedEvent) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 bg-[#0a0f1c] border border-rose-900/50 font-mono text-center px-4">
-        <AlertTriangle className="w-8 h-8 text-rose-500 mb-4" />
-        <span className="text-slate-300 tracking-widest mb-6">EVENT DATA UNAVAILABLE</span>
-        <button 
-          onClick={() => navigateTo('stream')} 
-          className="bg-[#030712] border border-slate-700 px-4 py-2 text-[10px] uppercase text-slate-400 hover:text-slate-200 transition-colors"
-        >
-          [ RETURN TO THREAT STREAM ]
-        </button>
-      </div>
-    );
-  }
+  // Dynamic values based on selected event
+  const displayFeatures = aiResult ? aiResult.features : defaultFeatureContribution;
 
   return (
     <div className="flex flex-col h-full space-y-4 md:space-y-5">
       
+      {/* CONTEXTUAL EVENT BANNER */}
       {analyzedEvent && (
         <div ref={analyzeRef} className="bg-[#0a0f1c] border border-purple-500/50 p-4 shrink-0 shadow-[0_0_15px_rgba(168,85,247,0.15)] relative overflow-hidden">
           <div className="absolute top-0 left-0 w-1 h-full bg-purple-500"></div>
@@ -699,18 +771,7 @@ function AnalyticsView({ analyzingEventId, navigateTo }) {
             <div><span className="text-slate-500 block mb-1">THREAT CLASS</span> <span className="text-slate-200 font-bold">{analyzedEvent.title}</span></div>
             <div><span className="text-slate-500 block mb-1">SEVERITY</span> <span className={`${getSeverityColor(analyzedEvent.severity)} px-1.5 py-0.5 rounded text-white font-bold inline-block`}>{analyzedEvent.severity}</span></div>
             <div><span className="text-slate-500 block mb-1">SOURCE</span> <span className="text-slate-200">{analyzedEvent.src}</span></div>
-            <div><span className="text-slate-500 block mb-1">ML CONFIDENCE</span> <span className="text-emerald-400 font-bold">{analyzedEvent.conf}</span></div>
-            <div className="col-span-2 sm:col-span-4 mt-2">
-              <span className="text-slate-500 block mb-2">TRIGGERED FEATURES</span>
-              <div className="flex flex-wrap gap-2">
-                {Object.entries(analyzedEvent.features || {}).map(([key, val]) => (
-                  <div key={key} className="bg-[#030712] border border-slate-800 px-2 py-1 rounded flex items-center space-x-2">
-                    <span className="text-slate-400 uppercase">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
-                    <span className={`font-bold ${val === 'HIGH' ? 'text-rose-400' : val === 'MED' ? 'text-amber-400' : 'text-slate-300'}`}>{val}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <div><span className="text-slate-500 block mb-1">ML CONFIDENCE</span> <span className="text-emerald-400 font-bold">{aiResult?.confidence || 'N/A'}</span></div>
           </div>
         </div>
       )}
@@ -733,15 +794,19 @@ function AnalyticsView({ analyzingEventId, navigateTo }) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5 shrink-0 min-h-[260px]">
         <div className="bg-[#0a0f1c] border border-indigo-900/30 flex flex-col p-4">
           <div className="flex flex-col border-b border-indigo-900/30 pb-3 mb-4">
-            <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase">RELATIVE FEATURE IMPORTANCE</h3>
-            <span className="text-[9px] font-mono text-purple-400/80 tracking-widest uppercase mt-0.5">NORMALIZED CONTRIBUTION</span>
+            <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase">
+              {analyzedEvent ? 'EVENT FEATURE EXPLANATION' : 'RELATIVE FEATURE IMPORTANCE'}
+            </h3>
+            <span className="text-[9px] font-mono text-purple-400/80 tracking-widest uppercase mt-0.5">
+              {analyzedEvent ? '[ SIMULATED EXPLANATION ]' : 'NORMALIZED CONTRIBUTION'}
+            </span>
           </div>
           <div className="flex-1 flex flex-col justify-between space-y-2 lg:space-y-0">
-            {featureContribution.map((feat) => (
+            {displayFeatures.map((feat) => (
               <div key={feat.name} className="flex items-center">
                 <span className="w-32 md:w-36 text-[10px] font-mono text-slate-400 uppercase tracking-widest truncate">{feat.name}</span>
                 <div className="flex-1 mx-3 bg-[#030712] h-1.5 border border-slate-800/80">
-                  <div className="bg-purple-600/80 h-full" style={{ width: `${feat.value}%` }}></div>
+                  <div className="bg-purple-600/80 h-full transition-all duration-500" style={{ width: `${feat.value}%` }}></div>
                 </div>
                 <span className="w-8 text-right text-[10px] font-mono text-slate-300 font-bold">{feat.value}%</span>
               </div>
@@ -808,30 +873,67 @@ function AnalyticsView({ analyzingEventId, navigateTo }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5 flex-1 min-h-[160px] mt-4">
         <div className="bg-[#0a0f1c] border border-indigo-900/30 flex flex-col p-4">
-          <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase border-b border-indigo-900/30 pb-3 mb-4">DETECTION IMPACT</h3>
+          <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase border-b border-indigo-900/30 pb-3 mb-4">
+            {aiResult ? 'CORRELATED ACTIVITY' : 'DETECTION IMPACT'}
+          </h3>
           <div className="flex-1 flex flex-col justify-center space-y-3">
-            {detectionImpact.map((impact, i) => (
-              <div key={i} className="flex justify-between items-center text-[10px] font-mono border-b border-slate-800/50 pb-2 last:border-0 last:pb-0">
-                <span className="text-slate-300 uppercase tracking-widest w-32">{impact.name}</span>
-                <span className="text-slate-400">{impact.events} events</span>
-                <span className="text-purple-400 font-bold">{impact.conf} conf</span>
-              </div>
-            ))}
+            {aiResult ? (
+              aiResult.correlated.length > 0 ? (
+                aiResult.correlated.map((impact, i) => (
+                  <div key={i} className="flex justify-between items-center text-[10px] font-mono border-b border-slate-800/50 pb-2 last:border-0 last:pb-0">
+                    <span className="text-slate-300 uppercase tracking-widest w-32 truncate">{impact.title}</span>
+                    <span className="text-slate-400">{impact.time}</span>
+                    <span className={`font-bold ${impact.severity === 'CRITICAL' ? 'text-rose-400' : 'text-amber-400'}`}>{impact.severity}</span>
+                  </div>
+                ))
+              ) : (
+                <div className="text-[10px] font-mono text-slate-500 text-center uppercase tracking-widest">No recent correlated activity</div>
+              )
+            ) : (
+              defaultDetectionImpact.map((impact, i) => (
+                <div key={i} className="flex justify-between items-center text-[10px] font-mono border-b border-slate-800/50 pb-2 last:border-0 last:pb-0">
+                  <span className="text-slate-300 uppercase tracking-widest w-32">{impact.name}</span>
+                  <span className="text-slate-400">{impact.events} events</span>
+                  <span className="text-purple-400 font-bold">{impact.conf} conf</span>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
         <div className="bg-[#0a0f1c] border border-indigo-900/30 flex flex-col p-4">
-          <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase border-b border-indigo-900/30 pb-3 mb-4">MODEL HEALTH</h3>
+          <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase border-b border-indigo-900/30 pb-3 mb-4">
+            {aiResult ? 'MULTI-MODEL CONSENSUS' : 'MODEL HEALTH'}
+          </h3>
           <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-[10px] font-mono">
-            {modelHealth.map((health, i) => (
-              <div key={i} className="flex items-center justify-between bg-[#060913]/50 px-2 py-1.5 border border-slate-800/80 rounded-sm">
-                <span className="text-slate-400 uppercase tracking-widest truncate mr-2">{health.name}</span>
-                <span className={`flex items-center tracking-wider ${health.isHighlight ? 'text-purple-400' : 'text-emerald-400'}`}>
-                  <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${health.isHighlight ? 'bg-purple-500' : 'bg-emerald-500'}`}></span>
-                  {health.status}
-                </span>
-              </div>
-            ))}
+            {aiResult ? (
+              <>
+                {aiResult.models.map((health, i) => (
+                  <div key={i} className="flex items-center justify-between bg-[#060913]/50 px-2 py-1.5 border border-slate-800/80 rounded-sm">
+                    <span className="text-slate-400 uppercase tracking-widest truncate mr-2">{health.name}</span>
+                    <span className={`flex items-center tracking-wider ${health.decision === 'MALICIOUS' ? 'text-rose-400 font-bold' : 'text-slate-300'}`}>
+                      {health.decision} — {health.conf}
+                    </span>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between bg-purple-900/20 px-2 py-1.5 border border-purple-500/50 rounded-sm mt-1 sm:col-span-2">
+                  <span className="text-purple-300 font-bold uppercase tracking-widest truncate mr-2">FINAL AI VERDICT</span>
+                  <span className={`flex items-center font-bold tracking-widest ${aiResult.verdict === 'MALICIOUS' ? 'text-rose-500' : 'text-amber-500'}`}>
+                    {aiResult.verdict}
+                  </span>
+                </div>
+              </>
+            ) : (
+              defaultModelHealth.map((health, i) => (
+                <div key={i} className="flex items-center justify-between bg-[#060913]/50 px-2 py-1.5 border border-slate-800/80 rounded-sm">
+                  <span className="text-slate-400 uppercase tracking-widest truncate mr-2">{health.name}</span>
+                  <span className={`flex items-center tracking-wider ${health.isHighlight ? 'text-purple-400' : 'text-emerald-400'}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${health.isHighlight ? 'bg-purple-500' : 'bg-emerald-500'}`}></span>
+                    {health.status}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
@@ -842,22 +944,13 @@ function AnalyticsView({ analyzingEventId, navigateTo }) {
 // ============================================================================
 // ZEEK LOGS VIEW
 // ============================================================================
-function ZeekLogsView({ navigateTo }) {
-  const [selectedEventId, setSelectedEventId] = useState('Cn2b211');
+function ZeekLogsView({ navigateTo, globalSelectedEventId, setGlobalSelectedEventId, handleFeedback, analystFeedback }) {
+  // Use global store so that Zeek Events are part of the ecosystem
+  const selectedEvent = globalEventStore.find(e => e.id === globalSelectedEventId) || zeekEventsData[4];
   const [copyStatus, setCopyStatus] = useState('idle');
 
-  const zeekEvents = [
-    { id: 'CjH2u123', ts: '16:55:04.12', log: 'conn.log', uid: 'CjH2u123', src: '10.24.5.18:54210', dst: '10.24.1.10:80', summary: 'TCP   14280 bytes   duration 0.82s', color: 'text-slate-300', severity: 'INFO', type: 'CONNECTION', ports: '80', raw: { "ts": 165504.12, "uid": "CjH2u123", "id.orig_h": "10.24.5.18", "id.orig_p": 54210, "id.resp_h": "10.24.1.10", "id.resp_p": 80, "proto": "tcp", "duration": 0.82, "orig_bytes": 1024, "resp_bytes": 14280 } },
-    { id: 'Cd87a32', ts: '16:55:03.87', log: 'dns.log', uid: 'Cd87a32', src: '10.24.7.41', dst: '10.24.0.53', summary: 'query: 3fa7b12.tunnel.c2node.io\ntype: TXT   status: NOERROR', color: 'text-slate-300', severity: 'INFO', type: 'DNS QUERY', ports: '53', raw: { "ts": 165503.87, "uid": "Cd87a32", "id.orig_h": "10.24.7.41", "id.resp_h": "10.24.0.53", "query": "3fa7b12.tunnel.c2node.io", "qtype_name": "TXT", "rcode_name": "NOERROR" } },
-    { id: 'Cs34f99', ts: '16:55:02.41', log: 'ssl.log', uid: 'Cs34f99', src: '10.24.8.19:443', dst: '—', summary: 'TLSv1.2   TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256', color: 'text-slate-300', severity: 'INFO', type: 'SSL HANDSHAKE', ports: '443', raw: { "ts": 165502.41, "uid": "Cs34f99", "id.orig_h": "10.24.8.19", "id.resp_p": 443, "version": "TLSv1.2", "cipher": "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256" } },
-    { id: 'Cw91x00', ts: '16:55:01.22', log: 'weird.log', uid: 'Cw91x00', src: '10.24.3.22', dst: '—', summary: 'active_connection_reuse', color: 'text-rose-500', severity: 'SUSPICIOUS', type: 'WEIRD ACTIVITY', ports: '—', raw: { "ts": 165501.22, "uid": "Cw91x00", "id.orig_h": "10.24.3.22", "name": "active_connection_reuse", "notice": false, "peer": "zeek-sensor-02" } },
-    { id: 'Cn2b211', ts: '16:55:00.94', log: 'notice.log', uid: 'Cn2b211', src: '10.24.3.22', dst: '—', summary: 'Scan::Address_Scan\n65 ports scanned', color: 'text-amber-500', severity: 'HIGH', type: 'NOTICE', ports: '65', raw: { "ts": 165500.94, "uid": "Cn2b211", "src": "10.24.3.22", "notice": "Scan::Address_Scan", "msg": "65 ports scanned", "sub": "remote", "actions": ["Notice::ACTION_LOG"] } },
-    { id: 'Ch9k312', ts: '16:54:59.72', log: 'conn.log', uid: 'Ch9k312', src: '10.24.18.42:53', dst: '10.24.0.53:53', summary: 'UDP   512 bytes', color: 'text-slate-300', severity: 'INFO', type: 'CONNECTION', ports: '53', raw: { "ts": 165459.72, "uid": "Ch9k312", "id.orig_h": "10.24.18.42", "id.orig_p": 53, "id.resp_h": "10.24.0.53", "id.resp_p": 53, "proto": "udp", "orig_bytes": 256, "resp_bytes": 256 } },
-  ];
-
-  const selectedEvent = zeekEvents.find(e => e.id === selectedEventId) || zeekEvents[4];
-
   const handleCopyEvent = async () => {
+    if (!selectedEvent.raw) return;
     try {
       const rawEventText = JSON.stringify(selectedEvent.raw, null, 2);
       await navigator.clipboard.writeText(rawEventText);
@@ -920,12 +1013,12 @@ function ZeekLogsView({ navigateTo }) {
           </div>
           
           <div className="flex-1 overflow-y-auto bg-[#02040a] p-3 space-y-2.5 text-[11px] leading-relaxed">
-            {zeekEvents.map((evt) => (
+            {zeekEventsData.map((evt) => (
               <div 
                 key={evt.id}
-                onClick={() => setSelectedEventId(evt.id)}
+                onClick={() => setGlobalSelectedEventId(evt.id)}
                 className={`p-2.5 border-l-2 cursor-pointer transition-colors ${
-                  selectedEventId === evt.id ? 'bg-purple-900/10 border-purple-500' : 'border-transparent hover:bg-slate-800/30'
+                  globalSelectedEventId === evt.id ? 'bg-purple-900/10 border-purple-500' : 'border-transparent hover:bg-slate-800/30'
                 }`}
               >
                 <div className="flex items-center space-x-3 mb-1">
@@ -957,42 +1050,65 @@ function ZeekLogsView({ navigateTo }) {
           
           <div className="flex-1 overflow-y-auto p-4 flex flex-col text-[10px]">
             <div className="grid grid-cols-2 gap-y-3 gap-x-2 mb-6">
-              <div><span className="text-slate-500 block mb-0.5">EVENT TYPE</span> <span className={selectedEvent.color}>{selectedEvent.type}</span></div>
-              <div><span className="text-slate-500 block mb-0.5">LOG SOURCE</span> <span className="text-slate-300">{selectedEvent.log}</span></div>
-              <div><span className="text-slate-500 block mb-0.5">TIMESTAMP</span> <span className="text-slate-300">{selectedEvent.ts}</span></div>
-              <div><span className="text-slate-500 block mb-0.5">CONNECTION UID</span> <span className="text-purple-400">{selectedEvent.uid}</span></div>
-              <div><span className="text-slate-500 block mb-0.5">SOURCE IP</span> <span className="text-slate-300">{selectedEvent.raw['id.orig_h'] || selectedEvent.raw['src'] || '—'}</span></div>
-              <div><span className="text-slate-500 block mb-0.5">DESTINATION</span> <span className="text-slate-300">{selectedEvent.raw['id.resp_h'] || '—'}</span></div>
-              <div className="col-span-2"><span className="text-slate-500 block mb-0.5">DETECTION / MSG</span> <span className="text-slate-300">{selectedEvent.raw['notice'] || selectedEvent.raw['name'] || selectedEvent.raw['query'] || '—'}</span></div>
-              <div><span className="text-slate-500 block mb-0.5">PORTS</span> <span className="text-slate-300">{selectedEvent.ports}</span></div>
-              <div><span className="text-slate-500 block mb-0.5">SEVERITY</span> <span className={`font-bold ${selectedEvent.severity === 'HIGH' ? 'text-amber-500' : selectedEvent.severity === 'SUSPICIOUS' ? 'text-rose-500' : 'text-slate-400'}`}>{selectedEvent.severity}</span></div>
+              <div><span className="text-slate-500 block mb-0.5">EVENT TYPE</span> <span className={selectedEvent.color}>{selectedEvent.type || selectedEvent.title}</span></div>
+              <div><span className="text-slate-500 block mb-0.5">LOG SOURCE</span> <span className="text-slate-300">{selectedEvent.log || 'engine.log'}</span></div>
+              <div><span className="text-slate-500 block mb-0.5">TIMESTAMP</span> <span className="text-slate-300">{selectedEvent.ts || selectedEvent.time}</span></div>
+              <div><span className="text-slate-500 block mb-0.5">CONNECTION UID</span> <span className="text-purple-400">{selectedEvent.uid || selectedEvent.id}</span></div>
+              <div><span className="text-slate-500 block mb-0.5">SOURCE IP</span> <span className="text-slate-300">{selectedEvent.raw?.['id.orig_h'] || selectedEvent.src || '—'}</span></div>
+              <div><span className="text-slate-500 block mb-0.5">DESTINATION</span> <span className="text-slate-300">{selectedEvent.raw?.['id.resp_h'] || selectedEvent.dst || '—'}</span></div>
+              <div className="col-span-2"><span className="text-slate-500 block mb-0.5">DETECTION / MSG</span> <span className="text-slate-300">{selectedEvent.raw?.notice || selectedEvent.raw?.name || selectedEvent.raw?.query || selectedEvent.title || '—'}</span></div>
+              <div><span className="text-slate-500 block mb-0.5">PORTS</span> <span className="text-slate-300">{selectedEvent.ports || '—'}</span></div>
+              <div><span className="text-slate-500 block mb-0.5">SEVERITY</span> <span className={`font-bold ${selectedEvent.severity === 'HIGH' ? 'text-amber-500' : selectedEvent.severity === 'SUSPICIOUS' || selectedEvent.severity === 'CRITICAL' ? 'text-rose-500' : 'text-slate-400'}`}>{selectedEvent.severity}</span></div>
             </div>
 
             <div className="mt-auto">
               <span className="text-slate-500 block mb-2 uppercase tracking-widest">RAW EVENT</span>
               <pre className="bg-[#02040a] border border-slate-800 p-3 rounded text-[10px] text-indigo-300/80 overflow-x-auto whitespace-pre-wrap word-break-all mb-4">
-                {JSON.stringify(selectedEvent.raw, null, 2)}
+                {selectedEvent.raw ? JSON.stringify(selectedEvent.raw, null, 2) : JSON.stringify({ error: "Raw sensor event metadata not available for this alert type." }, null, 2)}
               </pre>
 
-              <div className="flex space-x-3">
-                <button 
-                  onClick={handleCopyEvent}
-                  className="flex-1 flex items-center justify-center bg-[#060913] border border-slate-700 hover:border-slate-500 hover:bg-slate-800 text-slate-300 py-2 rounded transition-colors uppercase tracking-widest"
-                >
-                  {copyStatus === 'success' ? (
-                    'COPIED ✓'
-                  ) : copyStatus === 'error' ? (
-                    'COPY FAILED'
-                  ) : (
-                    <><Copy className="w-3 h-3 mr-2" /> COPY EVENT</>
-                  )}
-                </button>
-                <button 
-                  onClick={() => navigateTo('stream')}
-                  className="flex-1 flex items-center justify-center bg-purple-900/30 border border-purple-500/50 hover:bg-purple-900/50 text-purple-300 py-2 rounded transition-colors uppercase tracking-widest"
-                >
-                  <ActivitySquare className="w-3 h-3 mr-2" /> THREAT STREAM
-                </button>
+              <div className="flex flex-col space-y-2">
+                <div className="flex space-x-2">
+                  <button 
+                    onClick={handleCopyEvent}
+                    disabled={!selectedEvent.raw}
+                    className="flex-1 flex items-center justify-center bg-[#060913] border border-slate-700 hover:border-slate-500 hover:bg-slate-800 text-slate-300 py-2 rounded transition-colors uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {copyStatus === 'success' ? (
+                      'COPIED ✓'
+                    ) : copyStatus === 'error' ? (
+                      'COPY FAILED'
+                    ) : (
+                      <><Copy className="w-3 h-3 mr-2" /> COPY EVENT</>
+                    )}
+                  </button>
+                  <button 
+                    onClick={() => navigateTo('analytics', selectedEvent.id)}
+                    className="flex-1 flex items-center justify-center bg-purple-900/30 border border-purple-500/50 hover:bg-purple-900/50 text-purple-300 py-2 rounded transition-colors uppercase tracking-widest"
+                  >
+                    <ActivitySquare className="w-3 h-3 mr-2" /> THREAT STREAM
+                  </button>
+                </div>
+                
+                <div className="flex space-x-2">
+                  <button 
+                    onClick={() => handleFeedback(selectedEvent.id, 'CONFIRMED_THREAT')}
+                    className="flex-1 bg-rose-900/20 hover:bg-rose-900/40 border border-rose-500/40 text-rose-300 text-[9px] font-mono tracking-widest uppercase py-1.5 rounded transition-all active:scale-[0.98] text-center"
+                  >
+                    [ CONFIRM THREAT ]
+                  </button>
+                  <button 
+                    onClick={() => handleFeedback(selectedEvent.id, 'FALSE_POSITIVE')}
+                    className="flex-1 bg-slate-800/40 hover:bg-slate-700/50 border border-slate-600/50 text-slate-300 text-[9px] font-mono tracking-widest uppercase py-1.5 rounded transition-all active:scale-[0.98] text-center"
+                  >
+                    [ FALSE POSITIVE ]
+                  </button>
+                </div>
+                {analystFeedback[selectedEvent.id] && (
+                  <div className="text-[9px] font-mono text-center tracking-widest uppercase text-emerald-400 mt-1">
+                    STATUS: {analystFeedback[selectedEvent.id].label.replace('_', ' ')}
+                  </div>
+                )}
               </div>
             </div>
           </div>
