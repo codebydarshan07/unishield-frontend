@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
   PieChart, Pie, Cell, BarChart, Bar, LabelList
@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 
 // ============================================================================
-// MOCK DATA 
+// GLOBAL MOCK DATA & SHARED STATE
 // ============================================================================
 const threatActivityData = [
   { time: '15:55', high: 4, medium: 12, low: 25 },
@@ -41,6 +41,17 @@ const overviewAlerts = [
   { id: 'EVT-9027', severity: 'LOW', source: '10.24.5.11', dest: 'External', detection: 'Mismatched Cert', conf: '61.8%', time: '16:42:05', model: 'JA3 Fingerprint' },
 ];
 
+// Hoisted out of LiveStreamView to act as a single source of truth for navigation context
+const sharedLiveDetections = [
+  { id: 'EVT-9021', severity: 'CRITICAL', title: 'DGA / DNS Anomaly', src: '10.24.18.42', dst: '10.24.1.10', engine: 'Random Forest', conf: '98.2%', time: '16:52:31', features: { entropy: "HIGH", arrival: "HIGH", fanOut: "MED", dnsAnomaly: "HIGH" } },
+  { id: 'EVT-9022', severity: 'HIGH', title: 'Port Scan', src: '10.24.21.17', dst: '10.24.1.0/24', engine: 'Heuristic + RF', conf: '92.1%', time: '16:51:48', features: { entropy: "LOW", arrival: "HIGH", fanOut: "HIGH", portScan: "HIGH" } },
+  { id: 'EVT-9023', severity: 'HIGH', title: 'Beaconing', src: '10.24.19.08', dst: '198.51.100.4', engine: 'XGBoost FFT', conf: '88.3%', time: '16:50:22', features: { entropy: "MED", arrival: "MED", fanOut: "LOW", periodicity: "HIGH" } },
+  { id: 'EVT-9024', severity: 'MEDIUM', title: 'Anomalous Flow', src: '10.24.14.63', dst: '10.24.0.53', engine: 'Isolation Forest', conf: '81.4%', time: '16:49:57', features: { entropy: "HIGH", arrival: "LOW", fanOut: "MED", sizeVariance: "HIGH" } },
+  { id: 'EVT-9025', severity: 'MEDIUM', title: 'DNS Anomaly', src: '10.24.22.91', dst: '10.24.0.53', engine: 'CNN/LSTM', conf: '79.9%', time: '16:48:36', features: { entropy: "HIGH", arrival: "MED", fanOut: "LOW", dnsAnomaly: "HIGH" } },
+  { id: 'EVT-9026', severity: 'LOW', title: 'Encrypted Payload', src: '10.24.8.19', dst: 'External', engine: 'Autoencoder', conf: '65.2%', time: '16:45:11', features: { entropy: "HIGH", arrival: "LOW", fanOut: "LOW", certMismatch: "LOW" } },
+  { id: 'EVT-9027', severity: 'LOW', title: 'Mismatched Cert', src: '10.24.5.11', dst: 'External', engine: 'JA3 Fingerprint', conf: '61.8%', time: '16:42:05', features: { entropy: "LOW", arrival: "LOW", fanOut: "LOW", certMismatch: "HIGH" } },
+];
+
 const topSources = [
   { ip: '10.24.18.42', count: 312, width: '100%' },
   { ip: '10.24.21.17', count: 241, width: '77%' },
@@ -60,11 +71,12 @@ const getSeverityColor = (severity) => {
 };
 
 // ============================================================================
-// MAIN APPLICATION SHELL
+// MAIN APPLICATION SHELL & ROUTING ENGINE
 // ============================================================================
 export default function UniShieldDashboard() {
   const [pulse, setPulse] = useState(false);
-  const [activePage, setActivePage] = useState('overview'); 
+  const [activePage, setActivePage] = useState('stream'); 
+  const [analyzingEventId, setAnalyzingEventId] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   useEffect(() => {
@@ -72,9 +84,26 @@ export default function UniShieldDashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  const handleNavClick = (page) => {
+  // Set up native browser history (Back/Forward button support)
+  useEffect(() => {
+    const handlePopState = (e) => {
+      if (e.state) {
+        setActivePage(e.state.page || 'stream');
+        setAnalyzingEventId(e.state.eventId || null);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    window.history.replaceState({ page: activePage, eventId: analyzingEventId }, '');
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [activePage, analyzingEventId]);
+
+  // Unified routing function
+  const navigateTo = (page, eventId = null) => {
     setActivePage(page);
-    setMobileMenuOpen(false); 
+    setAnalyzingEventId(eventId);
+    const query = eventId ? `?page=${page}&event=${eventId}` : `?page=${page}`;
+    window.history.pushState({ page, eventId }, '', query);
+    setMobileMenuOpen(false);
   };
 
   return (
@@ -127,11 +156,11 @@ export default function UniShieldDashboard() {
             </div>
 
             <nav className="p-3 space-y-1 mt-2">
-              <SidebarBtn icon={<Layout />} label="OVERVIEW" active={activePage === 'overview'} onClick={() => handleNavClick('overview')} />
-              <SidebarBtn icon={<Activity />} label="LIVE THREAT STREAM" badge="6" pulse={pulse} active={activePage === 'stream'} onClick={() => handleNavClick('stream')} />
-              <SidebarBtn icon={<Crosshair />} label="THREAT ANALYTICS" active={activePage === 'analytics'} onClick={() => handleNavClick('analytics')} />
-              <SidebarBtn icon={<Terminal />} label="ZEEK CAPTURE LOGS" active={activePage === 'logs'} onClick={() => handleNavClick('logs')} />
-              <SidebarBtn icon={<Server />} label="SENSOR TELEMETRY" active={activePage === 'telemetry'} onClick={() => handleNavClick('telemetry')} />
+              <SidebarBtn icon={<Layout />} label="OVERVIEW" active={activePage === 'overview'} onClick={() => navigateTo('overview')} />
+              <SidebarBtn icon={<Activity />} label="LIVE THREAT STREAM" badge="6" pulse={pulse} active={activePage === 'stream'} onClick={() => navigateTo('stream')} />
+              <SidebarBtn icon={<Crosshair />} label="THREAT ANALYTICS" active={activePage === 'analytics'} onClick={() => navigateTo('analytics')} />
+              <SidebarBtn icon={<Terminal />} label="ZEEK CAPTURE LOGS" active={activePage === 'logs'} onClick={() => navigateTo('logs')} />
+              <SidebarBtn icon={<Server />} label="SENSOR TELEMETRY" active={activePage === 'telemetry'} onClick={() => navigateTo('telemetry')} />
             </nav>
           </div>
 
@@ -211,12 +240,11 @@ export default function UniShieldDashboard() {
           </header>
 
           <div className="flex-1 overflow-y-auto p-4 md:p-5">
-            {/* BUG FIX #2: Replaced h-full with min-h-full to prevent vertical layout clipping */}
             <div className="flex flex-col space-y-4 md:space-y-5 min-h-full max-w-[1600px] mx-auto pb-6">
               {activePage === 'overview' && <ExecutiveView />}
-              {activePage === 'stream' && <LiveStreamView />}
-              {activePage === 'analytics' && <AnalyticsView />}
-              {activePage === 'logs' && <ZeekLogsView />}
+              {activePage === 'stream' && <LiveStreamView navigateTo={navigateTo} />}
+              {activePage === 'analytics' && <AnalyticsView analyzingEventId={analyzingEventId} navigateTo={navigateTo} />}
+              {activePage === 'logs' && <ZeekLogsView navigateTo={navigateTo} />}
               {activePage === 'telemetry' && <TelemetryView />}
             </div>
           </div>
@@ -227,7 +255,7 @@ export default function UniShieldDashboard() {
 }
 
 // ============================================================================
-// EXECUTIVE SOC VIEW (OVERVIEW) - FULLY REDESIGNED & FIXED
+// FULL VIEWS 
 // ============================================================================
 
 function ExecutiveView() {
@@ -239,8 +267,6 @@ function ExecutiveView() {
     { label: 'Alert Engine', status: 'ONLINE', icon: <Radio className="w-3.5 h-3.5 text-purple-400"/> },
   ];
 
-  // BUG FIX #1: Custom tooltip returns null entirely when inactive. 
-  // Guarantees no permanent visual element blocks the chart.
   const CustomOverviewTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
       return (
@@ -258,7 +284,6 @@ function ExecutiveView() {
 
   return (
     <>
-      {/* 1. COMPACT KPI CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
         <KpiCard compact title="TOTAL ALERTS (24H)" value="1,248" subtext="Metadata-only detections" icon={<Target />} trend="↑ +12%" />
         <KpiCard compact title="CRITICAL BREACHES" value="4" subtext="High severity incidents" icon={<AlertTriangle />} trend="↑ +33%" isCritical />
@@ -266,10 +291,7 @@ function ExecutiveView() {
         <KpiCard compact title="DETECTION LATENCY" value="142 ms" subtext="End-to-end pipeline" icon={<Activity />} trend="↓ -18%" isPurple />
       </div>
 
-      {/* 2. CHARTS ROW */}
       <div className="flex flex-col lg:flex-row gap-4 md:gap-5">
-        
-        {/* Threat Activity Area Chart */}
         <div className="flex-1 lg:flex-[0.68] bg-[#0a0f1c] border border-indigo-900/30 flex flex-col relative overflow-hidden group min-h-[340px]">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
           <div className="px-4 py-3 border-b border-indigo-900/30 flex justify-between items-center bg-[#060913]/50">
@@ -296,40 +318,26 @@ function ExecutiveView() {
           </div>
         </div>
 
-        {/* Threat Classes Donut Chart */}
         <div className="flex-1 lg:flex-[0.32] bg-[#0a0f1c] border border-indigo-900/30 flex flex-col relative overflow-hidden min-h-[340px]">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
           <div className="px-4 py-3 border-b border-indigo-900/30 bg-[#060913]/50">
             <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase">THREAT CLASSES</h3>
           </div>
           <div className="flex-1 flex flex-col p-4">
-            
-            {/* Donut Container */}
             <div className="flex-1 relative min-h-[140px]">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie 
-                    data={threatDistribution} 
-                    innerRadius="68%" 
-                    outerRadius="90%" 
-                    paddingAngle={2} 
-                    dataKey="value" 
-                    stroke="none"
-                    isAnimationActive={false}
-                  >
+                  <Pie data={threatDistribution} innerRadius="68%" outerRadius="90%" paddingAngle={2} dataKey="value" stroke="none" isAnimationActive={false}>
                     {threatDistribution.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                   </Pie>
                   <RechartsTooltip content={<CustomOverviewTooltip />} cursor={{fill: 'transparent'}} />
                 </PieChart>
               </ResponsiveContainer>
-              
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                 <span className="text-2xl lg:text-3xl font-mono font-light text-slate-200">27</span>
                 <span className="text-[9px] font-mono text-slate-500 uppercase tracking-widest mt-0.5">Active Threats</span>
               </div>
             </div>
-
-            {/* Static Clean Legend */}
             <div className="mt-4 pt-4 border-t border-indigo-900/30">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-2">
                 {threatDistribution.map((dist, i) => (
@@ -343,15 +351,11 @@ function ExecutiveView() {
                 ))}
               </div>
             </div>
-
           </div>
         </div>
       </div>
 
-      {/* 3. LOWER CONTENT ROW */}
       <div className="flex flex-col lg:flex-row gap-4 md:gap-5">
-        
-        {/* Live Threat Feed */}
         <div className="flex-1 lg:flex-[0.48] bg-[#0a0f1c] border border-indigo-900/30 flex flex-col relative overflow-hidden min-h-[300px]">
           <div className="px-4 py-3 border-b border-indigo-900/30 bg-[#060913]/50 flex justify-between items-center shrink-0">
             <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase">LIVE THREAT FEED</h3>
@@ -385,7 +389,6 @@ function ExecutiveView() {
           </div>
         </div>
 
-        {/* Detection Pipeline */}
         <div className="flex-1 lg:flex-[0.26] bg-[#0a0f1c] border border-indigo-900/30 flex flex-col relative overflow-hidden min-h-[300px]">
           <div className="px-4 py-3 border-b border-indigo-900/30 bg-[#060913]/50 shrink-0">
             <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase">DETECTION PIPELINE</h3>
@@ -411,7 +414,6 @@ function ExecutiveView() {
           </div>
         </div>
 
-        {/* Top Threat Sources */}
         <div className="flex-1 lg:flex-[0.26] bg-[#0a0f1c] border border-indigo-900/30 flex flex-col relative overflow-hidden min-h-[300px]">
           <div className="px-4 py-3 border-b border-indigo-900/30 bg-[#060913]/50 shrink-0">
             <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase">TOP THREAT SOURCES</h3>
@@ -430,30 +432,17 @@ function ExecutiveView() {
             ))}
           </div>
         </div>
-
       </div>
     </>
   );
 }
 
 // ============================================================================
-// OTHER VIEWS
+// LIVE THREAT STREAM
 // ============================================================================
-
-function LiveStreamView() {
-  const [selectedEventId, setSelectedEventId] = useState('EVT-9021');
-
-  const liveDetections = [
-    { id: 'EVT-9021', severity: 'CRITICAL', title: 'DGA / DNS Anomaly', src: '10.24.18.42', dst: '10.24.1.10', engine: 'Random Forest', conf: '98.2%', time: '16:52:31' },
-    { id: 'EVT-9022', severity: 'HIGH', title: 'Port Scan', src: '10.24.21.17', dst: '10.24.1.0/24', engine: 'Heuristic + RF', conf: '92.1%', time: '16:51:48' },
-    { id: 'EVT-9023', severity: 'HIGH', title: 'Beaconing', src: '10.24.19.08', dst: '198.51.100.4', engine: 'XGBoost FFT', conf: '88.3%', time: '16:50:22' },
-    { id: 'EVT-9024', severity: 'MEDIUM', title: 'Anomalous Flow', src: '10.24.14.63', dst: '10.24.0.53', engine: 'Isolation Forest', conf: '81.4%', time: '16:49:57' },
-    { id: 'EVT-9025', severity: 'MEDIUM', title: 'DNS Anomaly', src: '10.24.22.91', dst: '10.24.0.53', engine: 'CNN/LSTM', conf: '79.9%', time: '16:48:36' },
-    { id: 'EVT-9026', severity: 'LOW', title: 'Encrypted Payload', src: '10.24.8.19', dst: 'External', engine: 'Autoencoder', conf: '65.2%', time: '16:45:11' },
-    { id: 'EVT-9027', severity: 'LOW', title: 'Mismatched Cert', src: '10.24.5.11', dst: 'External', engine: 'JA3 Fingerprint', conf: '61.8%', time: '16:42:05' },
-  ];
-
-  const selectedEvent = liveDetections.find(e => e.id === selectedEventId) || liveDetections[0];
+function LiveStreamView({ navigateTo }) {
+  const [selectedEventId, setSelectedEventId] = useState(sharedLiveDetections[0].id);
+  const selectedEvent = sharedLiveDetections.find(e => e.id === selectedEventId) || sharedLiveDetections[0];
 
   return (
     <div className="flex flex-col h-full space-y-4 md:space-y-5">
@@ -480,7 +469,7 @@ function LiveStreamView() {
           </div>
           
           <div className="flex-1 overflow-y-auto p-2 md:p-3 space-y-2 max-h-[300px] lg:max-h-full">
-            {liveDetections.map((evt) => {
+            {sharedLiveDetections.map((evt) => {
               const isSelected = evt.id === selectedEventId;
               const badgeColor = evt.severity === 'CRITICAL' ? 'bg-rose-500/20 text-rose-400 border-rose-500/40' :
                                  evt.severity === 'HIGH' ? 'bg-orange-500/20 text-orange-400 border-orange-500/40' :
@@ -536,14 +525,21 @@ function LiveStreamView() {
               <div>
                 <span className="block text-[9px] text-slate-500 uppercase tracking-widest mb-2">DETECTION FEATURES</span>
                 <div className="grid grid-cols-2 gap-1.5 text-[9px]">
-                  <div className="bg-[#030712] p-1.5 rounded border border-slate-800 flex justify-between"><span className="text-slate-500">ENTROPY</span><span className="text-rose-400 font-bold">HIGH</span></div>
-                  <div className="bg-[#030712] p-1.5 rounded border border-slate-800 flex justify-between"><span className="text-slate-500">ARRIVAL</span><span className="text-rose-400 font-bold">HIGH</span></div>
-                  <div className="bg-[#030712] p-1.5 rounded border border-slate-800 flex justify-between"><span className="text-slate-500">FAN-OUT</span><span className="text-amber-400 font-bold">MED</span></div>
-                  <div className="bg-[#030712] p-1.5 rounded border border-slate-800 flex justify-between"><span className="text-slate-500">DNS ANO</span><span className="text-rose-400 font-bold">HIGH</span></div>
+                  {Object.entries(selectedEvent.features).map(([key, val]) => (
+                    <div key={key} className="bg-[#030712] p-1.5 rounded border border-slate-800 flex justify-between">
+                      <span className="text-slate-500 uppercase truncate pr-2">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
+                      <span className={`font-bold ${val === 'HIGH' ? 'text-rose-400' : val === 'MED' ? 'text-amber-400' : 'text-slate-300'}`}>{val}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
-            <button className="w-full mt-4 bg-purple-900/30 hover:bg-purple-900/50 border border-purple-500/50 text-purple-300 text-[10px] font-mono tracking-widest uppercase py-2 rounded transition-colors text-center">
+            
+            {/* BUG FIX #3: IMPLEMENTED REAL ACTION BUTTON WITH HOVER/ACTIVE STATES */}
+            <button 
+              onClick={() => navigateTo('analytics', selectedEvent.id)}
+              className="w-full mt-4 bg-purple-900/30 hover:bg-purple-900/50 border border-purple-500/50 text-purple-300 text-[10px] font-mono tracking-widest uppercase py-2 rounded transition-all active:scale-[0.98] text-center shadow-[0_0_10px_rgba(168,85,247,0.1)] hover:shadow-[0_0_15px_rgba(168,85,247,0.2)]"
+            >
               [ VIEW IN THREAT ANALYTICS ]
             </button>
           </div>
@@ -590,7 +586,19 @@ function LiveStreamView() {
   );
 }
 
-function AnalyticsView() {
+// ============================================================================
+// THREAT ANALYTICS
+// ============================================================================
+function AnalyticsView({ analyzingEventId, navigateTo }) {
+  const analyzeRef = useRef(null);
+  const analyzedEvent = analyzingEventId ? sharedLiveDetections.find(e => e.id === analyzingEventId) : null;
+
+  useEffect(() => {
+    if (analyzedEvent && analyzeRef.current) {
+      analyzeRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [analyzedEvent]);
+
   const featureContribution = [
     { name: 'Source Entropy', value: 31 },
     { name: 'Inter-Arrival Variance', value: 24 },
@@ -631,8 +639,57 @@ function AnalyticsView() {
     { name: 'Ensemble', status: 'ACTIVE', isHighlight: true },
   ];
 
+  if (analyzingEventId && !analyzedEvent) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 bg-[#0a0f1c] border border-rose-900/50 font-mono text-center px-4">
+        <AlertTriangle className="w-8 h-8 text-rose-500 mb-4" />
+        <span className="text-slate-300 tracking-widest mb-6">EVENT DATA UNAVAILABLE</span>
+        <button 
+          onClick={() => navigateTo('stream')} 
+          className="bg-[#030712] border border-slate-700 px-4 py-2 text-[10px] uppercase text-slate-400 hover:text-slate-200 transition-colors"
+        >
+          [ RETURN TO THREAT STREAM ]
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full space-y-4 md:space-y-5">
+      
+      {/* CONTEXTUAL EVENT BANNER */}
+      {analyzedEvent && (
+        <div ref={analyzeRef} className="bg-[#0a0f1c] border border-purple-500/50 p-4 shrink-0 shadow-[0_0_15px_rgba(168,85,247,0.15)] relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-1 h-full bg-purple-500"></div>
+          <div className="flex justify-between items-center border-b border-purple-900/30 pb-3 mb-3 pl-3">
+            <h3 className="text-[11px] font-mono font-bold tracking-widest text-purple-400 uppercase flex items-center">
+              <ActivitySquare className="w-4 h-4 mr-2" />
+              ANALYZING SELECTED EVENT: {analyzedEvent.id}
+            </h3>
+            <button onClick={() => navigateTo('stream')} className="text-[9px] font-mono text-slate-500 hover:text-slate-300 tracking-widest uppercase transition-colors">
+              ← Back to Stream
+            </button>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 font-mono text-[10px] pl-3">
+            <div><span className="text-slate-500 block mb-1">THREAT CLASS</span> <span className="text-slate-200 font-bold">{analyzedEvent.title}</span></div>
+            <div><span className="text-slate-500 block mb-1">SEVERITY</span> <span className={`${getSeverityColor(analyzedEvent.severity)} px-1.5 py-0.5 rounded text-white font-bold inline-block`}>{analyzedEvent.severity}</span></div>
+            <div><span className="text-slate-500 block mb-1">SOURCE</span> <span className="text-slate-200">{analyzedEvent.src}</span></div>
+            <div><span className="text-slate-500 block mb-1">ML CONFIDENCE</span> <span className="text-emerald-400 font-bold">{analyzedEvent.conf}</span></div>
+            <div className="col-span-2 sm:col-span-4 mt-2">
+              <span className="text-slate-500 block mb-2">TRIGGERED FEATURES</span>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(analyzedEvent.features || {}).map(([key, val]) => (
+                  <div key={key} className="bg-[#030712] border border-slate-800 px-2 py-1 rounded flex items-center space-x-2">
+                    <span className="text-slate-400 uppercase">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
+                    <span className={`font-bold ${val === 'HIGH' ? 'text-rose-400' : val === 'MED' ? 'text-amber-400' : 'text-slate-300'}`}>{val}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4 shrink-0">
         {[
           { label: 'ACTIVE ML MODELS', value: '6' },
@@ -751,66 +808,25 @@ function AnalyticsView() {
   );
 }
 
-function ZeekLogsView() {
+// ============================================================================
+// ZEEK LOGS VIEW
+// ============================================================================
+function ZeekLogsView({ navigateTo }) {
   const [selectedEventId, setSelectedEventId] = useState('Cn2b211');
 
   const zeekEvents = [
-    {
-      id: 'CjH2u123', ts: '16:55:04.12', log: 'conn.log', uid: 'CjH2u123', 
-      src: '10.24.5.18:54210', dst: '10.24.1.10:80', 
-      summary: 'TCP   14280 bytes   duration 0.82s', 
-      color: 'text-slate-300', severity: 'INFO',
-      type: 'CONNECTION', ports: '80',
-      raw: { "ts": 165504.12, "uid": "CjH2u123", "id.orig_h": "10.24.5.18", "id.orig_p": 54210, "id.resp_h": "10.24.1.10", "id.resp_p": 80, "proto": "tcp", "duration": 0.82, "orig_bytes": 1024, "resp_bytes": 14280 }
-    },
-    {
-      id: 'Cd87a32', ts: '16:55:03.87', log: 'dns.log', uid: 'Cd87a32', 
-      src: '10.24.7.41', dst: '10.24.0.53', 
-      summary: 'query: 3fa7b12.tunnel.c2node.io\ntype: TXT   status: NOERROR', 
-      color: 'text-slate-300', severity: 'INFO',
-      type: 'DNS QUERY', ports: '53',
-      raw: { "ts": 165503.87, "uid": "Cd87a32", "id.orig_h": "10.24.7.41", "id.resp_h": "10.24.0.53", "query": "3fa7b12.tunnel.c2node.io", "qtype_name": "TXT", "rcode_name": "NOERROR" }
-    },
-    {
-      id: 'Cs34f99', ts: '16:55:02.41', log: 'ssl.log', uid: 'Cs34f99', 
-      src: '10.24.8.19:443', dst: '—', 
-      summary: 'TLSv1.2   TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256', 
-      color: 'text-slate-300', severity: 'INFO',
-      type: 'SSL HANDSHAKE', ports: '443',
-      raw: { "ts": 165502.41, "uid": "Cs34f99", "id.orig_h": "10.24.8.19", "id.resp_p": 443, "version": "TLSv1.2", "cipher": "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256" }
-    },
-    {
-      id: 'Cw91x00', ts: '16:55:01.22', log: 'weird.log', uid: 'Cw91x00', 
-      src: '10.24.3.22', dst: '—', 
-      summary: 'active_connection_reuse', 
-      color: 'text-rose-500', severity: 'SUSPICIOUS',
-      type: 'WEIRD ACTIVITY', ports: '—',
-      raw: { "ts": 165501.22, "uid": "Cw91x00", "id.orig_h": "10.24.3.22", "name": "active_connection_reuse", "notice": false, "peer": "zeek-sensor-02" }
-    },
-    {
-      id: 'Cn2b211', ts: '16:55:00.94', log: 'notice.log', uid: 'Cn2b211', 
-      src: '10.24.3.22', dst: '—', 
-      summary: 'Scan::Address_Scan\n65 ports scanned', 
-      color: 'text-amber-500', severity: 'HIGH',
-      type: 'NOTICE', ports: '65',
-      raw: { "ts": 165500.94, "uid": "Cn2b211", "src": "10.24.3.22", "notice": "Scan::Address_Scan", "msg": "65 ports scanned", "sub": "remote", "actions": ["Notice::ACTION_LOG"] }
-    },
-    {
-      id: 'Ch9k312', ts: '16:54:59.72', log: 'conn.log', uid: 'Ch9k312', 
-      src: '10.24.18.42:53', dst: '10.24.0.53:53', 
-      summary: 'UDP   512 bytes', 
-      color: 'text-slate-300', severity: 'INFO',
-      type: 'CONNECTION', ports: '53',
-      raw: { "ts": 165459.72, "uid": "Ch9k312", "id.orig_h": "10.24.18.42", "id.orig_p": 53, "id.resp_h": "10.24.0.53", "id.resp_p": 53, "proto": "udp", "orig_bytes": 256, "resp_bytes": 256 }
-    },
+    { id: 'CjH2u123', ts: '16:55:04.12', log: 'conn.log', uid: 'CjH2u123', src: '10.24.5.18:54210', dst: '10.24.1.10:80', summary: 'TCP   14280 bytes   duration 0.82s', color: 'text-slate-300', severity: 'INFO', type: 'CONNECTION', ports: '80', raw: { "ts": 165504.12, "uid": "CjH2u123", "id.orig_h": "10.24.5.18", "id.orig_p": 54210, "id.resp_h": "10.24.1.10", "id.resp_p": 80, "proto": "tcp", "duration": 0.82, "orig_bytes": 1024, "resp_bytes": 14280 } },
+    { id: 'Cd87a32', ts: '16:55:03.87', log: 'dns.log', uid: 'Cd87a32', src: '10.24.7.41', dst: '10.24.0.53', summary: 'query: 3fa7b12.tunnel.c2node.io\ntype: TXT   status: NOERROR', color: 'text-slate-300', severity: 'INFO', type: 'DNS QUERY', ports: '53', raw: { "ts": 165503.87, "uid": "Cd87a32", "id.orig_h": "10.24.7.41", "id.resp_h": "10.24.0.53", "query": "3fa7b12.tunnel.c2node.io", "qtype_name": "TXT", "rcode_name": "NOERROR" } },
+    { id: 'Cs34f99', ts: '16:55:02.41', log: 'ssl.log', uid: 'Cs34f99', src: '10.24.8.19:443', dst: '—', summary: 'TLSv1.2   TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256', color: 'text-slate-300', severity: 'INFO', type: 'SSL HANDSHAKE', ports: '443', raw: { "ts": 165502.41, "uid": "Cs34f99", "id.orig_h": "10.24.8.19", "id.resp_p": 443, "version": "TLSv1.2", "cipher": "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256" } },
+    { id: 'Cw91x00', ts: '16:55:01.22', log: 'weird.log', uid: 'Cw91x00', src: '10.24.3.22', dst: '—', summary: 'active_connection_reuse', color: 'text-rose-500', severity: 'SUSPICIOUS', type: 'WEIRD ACTIVITY', ports: '—', raw: { "ts": 165501.22, "uid": "Cw91x00", "id.orig_h": "10.24.3.22", "name": "active_connection_reuse", "notice": false, "peer": "zeek-sensor-02" } },
+    { id: 'Cn2b211', ts: '16:55:00.94', log: 'notice.log', uid: 'Cn2b211', src: '10.24.3.22', dst: '—', summary: 'Scan::Address_Scan\n65 ports scanned', color: 'text-amber-500', severity: 'HIGH', type: 'NOTICE', ports: '65', raw: { "ts": 165500.94, "uid": "Cn2b211", "src": "10.24.3.22", "notice": "Scan::Address_Scan", "msg": "65 ports scanned", "sub": "remote", "actions": ["Notice::ACTION_LOG"] } },
+    { id: 'Ch9k312', ts: '16:54:59.72', log: 'conn.log', uid: 'Ch9k312', src: '10.24.18.42:53', dst: '10.24.0.53:53', summary: 'UDP   512 bytes', color: 'text-slate-300', severity: 'INFO', type: 'CONNECTION', ports: '53', raw: { "ts": 165459.72, "uid": "Ch9k312", "id.orig_h": "10.24.18.42", "id.orig_p": 53, "id.resp_h": "10.24.0.53", "id.resp_p": 53, "proto": "udp", "orig_bytes": 256, "resp_bytes": 256 } },
   ];
 
   const selectedEvent = zeekEvents.find(e => e.id === selectedEventId) || zeekEvents[4];
 
   return (
     <div className="flex flex-col h-full space-y-4 font-mono">
-      
-      {/* SECTION 1 - SENSOR SUMMARY */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">
         {[
           { label: 'EVENTS / SEC', value: '18.4K' },
@@ -825,7 +841,6 @@ function ZeekLogsView() {
         ))}
       </div>
 
-      {/* SECTION 2 - LOG FILTER BAR */}
       <div className="bg-[#0a0f1c] border border-indigo-900/30 p-2 md:p-3 shrink-0 flex flex-col md:flex-row md:items-center justify-between text-[10px] uppercase tracking-widest text-slate-400 gap-3 md:gap-0">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center space-x-2">
@@ -849,10 +864,7 @@ function ZeekLogsView() {
         </div>
       </div>
 
-      {/* SECTION 3 & 4 - MAIN LOG EXPLORER & EVENT INSPECTOR */}
       <div className="flex flex-col lg:flex-row gap-4 shrink-0 min-h-[450px]">
-        
-        {/* SECTION 3 - LIVE ZEEK EVENT STREAM */}
         <div className="flex-1 lg:flex-[0.65] bg-[#0a0f1c] border border-indigo-900/30 flex flex-col overflow-hidden relative">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
           <div className="px-4 py-2.5 border-b border-indigo-900/30 bg-[#060913]/50">
@@ -889,7 +901,6 @@ function ZeekLogsView() {
           </div>
         </div>
 
-        {/* SECTION 4 - EVENT INSPECTOR */}
         <div className="flex-1 lg:flex-[0.35] bg-[#0a0f1c] border border-indigo-900/30 flex flex-col overflow-hidden relative">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
           <div className="px-4 py-2.5 border-b border-indigo-900/30 bg-[#060913]/50">
@@ -919,7 +930,10 @@ function ZeekLogsView() {
                 <button className="flex-1 flex items-center justify-center bg-[#060913] border border-slate-700 hover:border-slate-500 hover:bg-slate-800 text-slate-300 py-2 rounded transition-colors uppercase tracking-widest">
                   <Copy className="w-3 h-3 mr-2" /> COPY EVENT
                 </button>
-                <button className="flex-1 flex items-center justify-center bg-purple-900/30 border border-purple-500/50 hover:bg-purple-900/50 text-purple-300 py-2 rounded transition-colors uppercase tracking-widest">
+                <button 
+                  onClick={() => navigateTo('stream')}
+                  className="flex-1 flex items-center justify-center bg-purple-900/30 border border-purple-500/50 hover:bg-purple-900/50 text-purple-300 py-2 rounded transition-colors uppercase tracking-widest"
+                >
                   <ActivitySquare className="w-3 h-3 mr-2" /> THREAT STREAM
                 </button>
               </div>
@@ -928,7 +942,6 @@ function ZeekLogsView() {
         </div>
       </div>
 
-      {/* SECTION 5 - LOG SOURCE SUMMARY */}
       <div className="bg-[#0a0f1c] border border-indigo-900/30 p-3 shrink-0 flex flex-col md:flex-row md:items-center justify-between text-[10px] uppercase tracking-widest gap-3 md:gap-0">
         <span className="text-slate-500 font-bold hidden lg:block">LOG SOURCES</span>
         <div className="flex flex-wrap items-center gap-4 lg:gap-8 flex-1 lg:justify-center">
@@ -941,7 +954,6 @@ function ZeekLogsView() {
         </div>
       </div>
 
-      {/* SECTION 6 - SECURITY CORRELATION */}
       <div className="shrink-0 flex flex-col">
         <h3 className="text-[10px] font-bold tracking-widest text-slate-500 uppercase mb-3">RECENT SECURITY CORRELATIONS</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
