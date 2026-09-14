@@ -41,7 +41,6 @@ const overviewAlerts = [
   { id: 'EVT-9027', severity: 'LOW', source: '10.24.5.11', dest: 'External', detection: 'Mismatched Cert', conf: '61.8%', time: '16:42:05', model: 'JA3 Fingerprint' },
 ];
 
-// Hoisted out of LiveStreamView to act as a single source of truth for navigation context
 const sharedLiveDetections = [
   { id: 'EVT-9021', severity: 'CRITICAL', title: 'DGA / DNS Anomaly', src: '10.24.18.42', dst: '10.24.1.10', engine: 'Random Forest', conf: '98.2%', time: '16:52:31', features: { entropy: "HIGH", arrival: "HIGH", fanOut: "MED", dnsAnomaly: "HIGH" } },
   { id: 'EVT-9022', severity: 'HIGH', title: 'Port Scan', src: '10.24.21.17', dst: '10.24.1.0/24', engine: 'Heuristic + RF', conf: '92.1%', time: '16:51:48', features: { entropy: "LOW", arrival: "HIGH", fanOut: "HIGH", portScan: "HIGH" } },
@@ -84,7 +83,6 @@ export default function UniShieldDashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  // Set up native browser history (Back/Forward button support)
   useEffect(() => {
     const handlePopState = (e) => {
       if (e.state) {
@@ -97,7 +95,6 @@ export default function UniShieldDashboard() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [activePage, analyzingEventId]);
 
-  // Unified routing function
   const navigateTo = (page, eventId = null) => {
     setActivePage(page);
     setAnalyzingEventId(eventId);
@@ -109,7 +106,6 @@ export default function UniShieldDashboard() {
   return (
     <div className="flex flex-col h-screen w-screen bg-[#030712] text-slate-300 font-sans overflow-hidden selection:bg-purple-500/30">
       
-      {/* GLOBAL TOP HEADER */}
       <header className="h-8 bg-[#02040a] border-b border-indigo-900/30 flex items-center justify-between px-3 md:px-4 shrink-0 font-mono text-[9px] md:text-[10px] text-slate-500 tracking-widest uppercase">
         <div className="flex items-center space-x-2 truncate">
           <ShieldAlert className="w-3.5 h-3.5 text-slate-600 shrink-0" />
@@ -125,7 +121,6 @@ export default function UniShieldDashboard() {
 
       <div className="flex flex-1 overflow-hidden relative">
         
-        {/* MOBILE MENU OVERLAY */}
         {mobileMenuOpen && (
           <div 
             onClick={() => setMobileMenuOpen(false)}
@@ -133,7 +128,6 @@ export default function UniShieldDashboard() {
           ></div>
         )}
 
-        {/* RESPONSIVE SIDEBAR */}
         <aside className={`
           absolute md:relative z-50 top-0 bottom-0 left-0 w-[280px] bg-[#060913] border-r border-indigo-900/30 flex flex-col justify-between shrink-0 shadow-[4px_0_24px_rgba(0,0,0,0.5)] transition-transform duration-300 ease-in-out
           ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
@@ -188,7 +182,6 @@ export default function UniShieldDashboard() {
           </div>
         </aside>
 
-        {/* MAIN VIEWPORT */}
         <main className="flex-1 flex flex-col h-full overflow-hidden relative bg-[#030712]">
           
           <header className="px-4 md:px-6 py-3 md:py-5 border-b border-indigo-900/30 flex items-center justify-between shrink-0 bg-[#060913]">
@@ -535,7 +528,6 @@ function LiveStreamView({ navigateTo }) {
               </div>
             </div>
             
-            {/* BUG FIX #3: IMPLEMENTED REAL ACTION BUTTON WITH HOVER/ACTIVE STATES */}
             <button 
               onClick={() => navigateTo('analytics', selectedEvent.id)}
               className="w-full mt-4 bg-purple-900/30 hover:bg-purple-900/50 border border-purple-500/50 text-purple-300 text-[10px] font-mono tracking-widest uppercase py-2 rounded transition-all active:scale-[0.98] text-center shadow-[0_0_10px_rgba(168,85,247,0.1)] hover:shadow-[0_0_15px_rgba(168,85,247,0.2)]"
@@ -813,6 +805,7 @@ function AnalyticsView({ analyzingEventId, navigateTo }) {
 // ============================================================================
 function ZeekLogsView({ navigateTo }) {
   const [selectedEventId, setSelectedEventId] = useState('Cn2b211');
+  const [copyStatus, setCopyStatus] = useState('idle');
 
   const zeekEvents = [
     { id: 'CjH2u123', ts: '16:55:04.12', log: 'conn.log', uid: 'CjH2u123', src: '10.24.5.18:54210', dst: '10.24.1.10:80', summary: 'TCP   14280 bytes   duration 0.82s', color: 'text-slate-300', severity: 'INFO', type: 'CONNECTION', ports: '80', raw: { "ts": 165504.12, "uid": "CjH2u123", "id.orig_h": "10.24.5.18", "id.orig_p": 54210, "id.resp_h": "10.24.1.10", "id.resp_p": 80, "proto": "tcp", "duration": 0.82, "orig_bytes": 1024, "resp_bytes": 14280 } },
@@ -824,6 +817,22 @@ function ZeekLogsView({ navigateTo }) {
   ];
 
   const selectedEvent = zeekEvents.find(e => e.id === selectedEventId) || zeekEvents[4];
+
+  const handleCopyEvent = async () => {
+    try {
+      const rawEventText = JSON.stringify(selectedEvent.raw, null, 2);
+      await navigator.clipboard.writeText(rawEventText);
+      setCopyStatus("success");
+      setTimeout(() => {
+        setCopyStatus("idle");
+      }, 1800);
+    } catch (error) {
+      setCopyStatus("error");
+      setTimeout(() => {
+        setCopyStatus("idle");
+      }, 1800);
+    }
+  };
 
   return (
     <div className="flex flex-col h-full space-y-4 font-mono">
@@ -927,8 +936,17 @@ function ZeekLogsView({ navigateTo }) {
               </pre>
 
               <div className="flex space-x-3">
-                <button className="flex-1 flex items-center justify-center bg-[#060913] border border-slate-700 hover:border-slate-500 hover:bg-slate-800 text-slate-300 py-2 rounded transition-colors uppercase tracking-widest">
-                  <Copy className="w-3 h-3 mr-2" /> COPY EVENT
+                <button 
+                  onClick={handleCopyEvent}
+                  className="flex-1 flex items-center justify-center bg-[#060913] border border-slate-700 hover:border-slate-500 hover:bg-slate-800 text-slate-300 py-2 rounded transition-colors uppercase tracking-widest"
+                >
+                  {copyStatus === 'success' ? (
+                    'COPIED ✓'
+                  ) : copyStatus === 'error' ? (
+                    'COPY FAILED'
+                  ) : (
+                    <><Copy className="w-3 h-3 mr-2" /> COPY EVENT</>
+                  )}
                 </button>
                 <button 
                   onClick={() => navigateTo('stream')}
