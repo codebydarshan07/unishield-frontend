@@ -95,21 +95,19 @@ const formatDateTime = (date) => {
 };
 
 // ============================================================================
-// DEMO AI PIPELINE (Deterministic Prototype Inference)
+// DEMO AI PIPELINE & BACKEND ADAPTER
 // ============================================================================
+
+// 1. Used for the Threat Analytics Page (Deterministic)
 function simulateAIAnalysis(event, allEvents) {
   if (!event) return null;
-  
   const seed = event.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const isMalicious = ['CRITICAL', 'HIGH', 'SUSPICIOUS'].includes(event.severity);
-
   const features = Object.entries(event.features || { entropy: 'HIGH', payload: 'MED' }).map(([k, v]) => ({
       name: k.replace(/([A-Z])/g, ' $1').trim(),
       value: v === 'HIGH' ? (30 + (seed % 10)) : v === 'MED' ? (15 + (seed % 5)) : (5 + (seed % 3))
   }));
-
   const srcIp = event.src ? event.src.split(':')[0] : '10.24.18.42';
-
   const correlated = allEvents.filter(e => {
      const eSrc = e.src ? e.src.split(':')[0] : '';
      return eSrc === srcIp && e.id !== event.id;
@@ -130,13 +128,61 @@ function simulateAIAnalysis(event, allEvents) {
   };
 }
 
+// 2. Used for the live Zeek Logs AI Threat Assessment Panel (Simulates Backend Contract)
+function fetchAIAssessment(event) {
+  return new Promise((resolve) => {
+    // Simulate network delay for realistic "Analyzing event..." loading state
+    setTimeout(() => {
+      const seed = event.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+      const isMalicious = ['CRITICAL', 'HIGH', 'SUSPICIOUS'].includes(event.severity);
+      
+      let explanation = "";
+      let evidence = [];
+      
+      if (isMalicious) {
+        if (event.title?.includes('Scan') || event.title?.includes('NOTICE')) {
+          explanation = "AI detected scanning behavior because the source host contacted an unusually large number of destination ports within a short interval. The observed port fan-out and connection frequency differ from the expected baseline.";
+          evidence = ["65 ports scanned in a short interval", "High port fan-out ratio", "Abnormal connection frequency", "Behavior differs from historical baseline"];
+        } else if (event.title?.includes('DNS')) {
+          explanation = "AI detected an anomalous DNS payload. The query structure and entropy resemble Domain Generation Algorithm (DGA) behavior often used for C2 beaconing.";
+          evidence = ["High DNS query entropy", "Unusual sub-domain length", "Missing typical DNS resolution patterns"];
+        } else {
+          explanation = "AI flagged this event due to significant deviations in payload size and connection timing compared to the host's historical baseline.";
+          evidence = ["Abnormal connection duration", "High payload size variance", "Unexpected protocol usage for port"];
+        }
+      } else {
+        explanation = "The observed traffic initially matched a suspicious pattern, but the AI determined that it is consistent with expected internal service behavior.";
+        evidence = ["Known internal destination", "Normal connection frequency", "Expected protocol behavior", "Matches baseline traffic"];
+      }
+
+      resolve({
+         event_id: event.id,
+         threat_type: event.title || 'Anomaly',
+         severity: event.severity,
+         verdict: isMalicious ? 'THREAT' : 'FALSE POSITIVE',
+         confidence: event.conf ? parseFloat(event.conf) / 100 || 0.94 : (0.85 + (seed % 14) / 100),
+         explanation: explanation,
+         evidence: evidence,
+         model_consensus: {
+           isolation_forest: { verdict: 'THREAT', confidence: (0.85 + (seed % 10) / 100) },
+           random_forest: { verdict: isMalicious ? 'THREAT' : 'FALSE POSITIVE', confidence: (0.90 + (seed % 8) / 100) },
+           xgboost: { verdict: isMalicious ? 'THREAT' : 'FALSE POSITIVE', confidence: (0.88 + (seed % 9) / 100) },
+           autoencoder: { verdict: 'FALSE POSITIVE', confidence: (0.80 + (seed % 15) / 100) }
+         },
+         recommended_action: isMalicious ? `Investigate source host ${event.src?.split(':')[0]} and correlate recent connection events.` : `No immediate action required. Expected baseline behavior.`
+      });
+    }, 600);
+  });
+}
+
+
 // ============================================================================
 // MAIN APPLICATION SHELL & ROUTING ENGINE
 // ============================================================================
 export default function UniShieldDashboard() {
   const [pulse, setPulse] = useState(false);
-  const [activePage, setActivePage] = useState('stream'); 
-  const [globalSelectedEventId, setGlobalSelectedEventId] = useState('EVT-9021');
+  const [activePage, setActivePage] = useState('logs'); 
+  const [globalSelectedEventId, setGlobalSelectedEventId] = useState('Cn2b211');
   const [analystFeedback, setAnalystFeedback] = useState({}); 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -154,7 +200,7 @@ export default function UniShieldDashboard() {
   useEffect(() => {
     const handlePopState = (e) => {
       if (e.state) {
-        setActivePage(e.state.page || 'stream');
+        setActivePage(e.state.page || 'logs');
         if (e.state.eventId) setGlobalSelectedEventId(e.state.eventId);
       }
     };
@@ -512,7 +558,7 @@ function ExecutiveView() {
 // ============================================================================
 // LIVE THREAT STREAM
 // ============================================================================
-function LiveStreamView({ navigateTo, globalSelectedEventId, setGlobalSelectedEventId, handleFeedback, analystFeedback }) {
+function LiveStreamView({ navigateTo, globalSelectedEventId, setGlobalSelectedEventId }) {
   const selectedEvent = globalEventStore.find(e => e.id === globalSelectedEventId) || globalEventStore[0];
 
   return (
@@ -613,27 +659,6 @@ function LiveStreamView({ navigateTo, globalSelectedEventId, setGlobalSelectedEv
               >
                 [ VIEW IN THREAT ANALYTICS ]
               </button>
-              
-              <div className="flex space-x-2">
-                <button 
-                  onClick={() => handleFeedback(selectedEvent.id, 'CONFIRMED_THREAT')}
-                  className="flex-1 bg-rose-900/20 hover:bg-rose-900/40 border border-rose-500/40 text-rose-300 text-[9px] font-mono tracking-widest uppercase py-1.5 rounded transition-all active:scale-[0.98] text-center"
-                >
-                  [ CONFIRM THREAT ]
-                </button>
-                <button 
-                  onClick={() => handleFeedback(selectedEvent.id, 'FALSE_POSITIVE')}
-                  className="flex-1 bg-slate-800/40 hover:bg-slate-700/50 border border-slate-600/50 text-slate-300 text-[9px] font-mono tracking-widest uppercase py-1.5 rounded transition-all active:scale-[0.98] text-center"
-                >
-                  [ FALSE POSITIVE ]
-                </button>
-              </div>
-
-              {analystFeedback[selectedEvent.id] && (
-                <div className="text-[9px] font-mono text-center tracking-widest uppercase text-emerald-400 mt-1">
-                  STATUS: {analystFeedback[selectedEvent.id].label.replace('_', ' ')}
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -944,9 +969,30 @@ function AnalyticsView({ globalSelectedEventId, navigateTo }) {
 // ZEEK LOGS VIEW
 // ============================================================================
 function ZeekLogsView({ navigateTo, globalSelectedEventId, setGlobalSelectedEventId, handleFeedback, analystFeedback }) {
-  // Use global store so that Zeek Events are part of the ecosystem
   const selectedEvent = globalEventStore.find(e => e.id === globalSelectedEventId) || zeekEventsData[4];
   const [copyStatus, setCopyStatus] = useState('idle');
+  
+  // AI Assessment State
+  const [aiAssessment, setAiAssessment] = useState(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  // Trigger backend adapter call on event selection
+  useEffect(() => {
+    let isMounted = true;
+    setIsAnalyzing(true);
+    setAiAssessment(null);
+
+    fetchAIAssessment(selectedEvent).then(result => {
+      if (isMounted) {
+        setAiAssessment(result);
+        setIsAnalyzing(false);
+      }
+    }).catch(() => {
+      if (isMounted) setIsAnalyzing(false);
+    });
+
+    return () => { isMounted = false; };
+  }, [selectedEvent.id]);
 
   const handleCopyEvent = async () => {
     if (!selectedEvent.raw) return;
@@ -954,14 +1000,10 @@ function ZeekLogsView({ navigateTo, globalSelectedEventId, setGlobalSelectedEven
       const rawEventText = JSON.stringify(selectedEvent.raw, null, 2);
       await navigator.clipboard.writeText(rawEventText);
       setCopyStatus("success");
-      setTimeout(() => {
-        setCopyStatus("idle");
-      }, 1800);
+      setTimeout(() => setCopyStatus("idle"), 1800);
     } catch (error) {
       setCopyStatus("error");
-      setTimeout(() => {
-        setCopyStatus("idle");
-      }, 1800);
+      setTimeout(() => setCopyStatus("idle"), 1800);
     }
   };
 
@@ -1005,7 +1047,8 @@ function ZeekLogsView({ navigateTo, globalSelectedEventId, setGlobalSelectedEven
       </div>
 
       <div className="flex flex-col lg:flex-row gap-4 shrink-0 min-h-[450px]">
-        <div className="flex-1 lg:flex-[0.65] bg-[#0a0f1c] border border-indigo-900/30 flex flex-col overflow-hidden relative">
+        {/* LEFT PANEL: Zeek Event Stream */}
+        <div className="flex-1 lg:flex-[0.60] bg-[#0a0f1c] border border-indigo-900/30 flex flex-col overflow-hidden relative">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
           <div className="px-4 py-2.5 border-b border-indigo-900/30 bg-[#060913]/50">
             <h3 className="text-[11px] font-bold tracking-widest text-slate-300 uppercase">LIVE ZEEK EVENT STREAM</h3>
@@ -1033,7 +1076,6 @@ function ZeekLogsView({ navigateTo, globalSelectedEventId, setGlobalSelectedEven
                 </div>
               </div>
             ))}
-            
             <div className="p-2.5 flex items-center text-slate-500 text-[10px] mt-4 opacity-70">
               <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-2 animate-pulse"></span>
               Waiting for next event...
@@ -1041,75 +1083,124 @@ function ZeekLogsView({ navigateTo, globalSelectedEventId, setGlobalSelectedEven
           </div>
         </div>
 
-        <div className="flex-1 lg:flex-[0.35] bg-[#0a0f1c] border border-indigo-900/30 flex flex-col overflow-hidden relative">
+        {/* RIGHT PANEL: Event Inspector & AI Assessment */}
+        <div className="flex-1 lg:flex-[0.40] bg-[#0a0f1c] border border-indigo-900/30 flex flex-col overflow-hidden relative">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
           <div className="px-4 py-2.5 border-b border-indigo-900/30 bg-[#060913]/50">
             <h3 className="text-[11px] font-bold tracking-widest text-slate-300 uppercase">EVENT INSPECTOR</h3>
           </div>
           
           <div className="flex-1 overflow-y-auto p-4 flex flex-col text-[10px]">
-            <div className="grid grid-cols-2 gap-y-3 gap-x-2 mb-6">
+            {/* Event Metadata */}
+            <div className="grid grid-cols-2 gap-y-3 gap-x-2 mb-4">
               <div><span className="text-slate-500 block mb-0.5">EVENT TYPE</span> <span className={selectedEvent.color}>{selectedEvent.type || selectedEvent.title}</span></div>
               <div><span className="text-slate-500 block mb-0.5">LOG SOURCE</span> <span className="text-slate-300">{selectedEvent.log || 'engine.log'}</span></div>
               <div><span className="text-slate-500 block mb-0.5">TIMESTAMP</span> <span className="text-slate-300">{selectedEvent.ts || selectedEvent.time}</span></div>
               <div><span className="text-slate-500 block mb-0.5">CONNECTION UID</span> <span className="text-purple-400">{selectedEvent.uid || selectedEvent.id}</span></div>
               <div><span className="text-slate-500 block mb-0.5">SOURCE IP</span> <span className="text-slate-300">{selectedEvent.raw?.['id.orig_h'] || selectedEvent.src || '—'}</span></div>
               <div><span className="text-slate-500 block mb-0.5">DESTINATION</span> <span className="text-slate-300">{selectedEvent.raw?.['id.resp_h'] || selectedEvent.dst || '—'}</span></div>
-              <div className="col-span-2"><span className="text-slate-500 block mb-0.5">DETECTION / MSG</span> <span className="text-slate-300">{selectedEvent.raw?.notice || selectedEvent.raw?.name || selectedEvent.raw?.query || selectedEvent.title || '—'}</span></div>
-              <div><span className="text-slate-500 block mb-0.5">PORTS</span> <span className="text-slate-300">{selectedEvent.ports || '—'}</span></div>
-              <div><span className="text-slate-500 block mb-0.5">SEVERITY</span> <span className={`font-bold ${selectedEvent.severity === 'HIGH' ? 'text-amber-500' : selectedEvent.severity === 'SUSPICIOUS' || selectedEvent.severity === 'CRITICAL' ? 'text-rose-500' : 'text-slate-400'}`}>{selectedEvent.severity}</span></div>
             </div>
 
-            <div className="mt-auto">
-              <span className="text-slate-500 block mb-2 uppercase tracking-widest">RAW EVENT</span>
-              <pre className="bg-[#02040a] border border-slate-800 p-3 rounded text-[10px] text-indigo-300/80 overflow-x-auto whitespace-pre-wrap word-break-all mb-4">
-                {selectedEvent.raw ? JSON.stringify(selectedEvent.raw, null, 2) : JSON.stringify({ error: "Raw sensor event metadata not available for this alert type." }, null, 2)}
-              </pre>
-
-              <div className="flex flex-col space-y-2">
-                <div className="flex space-x-2">
-                  <button 
-                    onClick={handleCopyEvent}
-                    disabled={!selectedEvent.raw}
-                    className="flex-1 flex items-center justify-center bg-[#060913] border border-slate-700 hover:border-slate-500 hover:bg-slate-800 text-slate-300 py-2 rounded transition-colors uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {copyStatus === 'success' ? (
-                      'COPIED ✓'
-                    ) : copyStatus === 'error' ? (
-                      'COPY FAILED'
-                    ) : (
-                      <><Copy className="w-3 h-3 mr-2" /> COPY EVENT</>
-                    )}
-                  </button>
-                  <button 
-                    onClick={() => navigateTo('analytics', selectedEvent.id)}
-                    className="flex-1 flex items-center justify-center bg-purple-900/30 border border-purple-500/50 hover:bg-purple-900/50 text-purple-300 py-2 rounded transition-colors uppercase tracking-widest"
-                  >
-                    <ActivitySquare className="w-3 h-3 mr-2" /> THREAT STREAM
-                  </button>
-                </div>
-                
-                <div className="flex space-x-2">
-                  <button 
-                    onClick={() => handleFeedback(selectedEvent.id, 'CONFIRMED_THREAT')}
-                    className="flex-1 bg-rose-900/20 hover:bg-rose-900/40 border border-rose-500/40 text-rose-300 text-[9px] font-mono tracking-widest uppercase py-1.5 rounded transition-all active:scale-[0.98] text-center"
-                  >
-                    [ CONFIRM THREAT ]
-                  </button>
-                  <button 
-                    onClick={() => handleFeedback(selectedEvent.id, 'FALSE_POSITIVE')}
-                    className="flex-1 bg-slate-800/40 hover:bg-slate-700/50 border border-slate-600/50 text-slate-300 text-[9px] font-mono tracking-widest uppercase py-1.5 rounded transition-all active:scale-[0.98] text-center"
-                  >
-                    [ FALSE POSITIVE ]
-                  </button>
-                </div>
-                {analystFeedback[selectedEvent.id] && (
-                  <div className="text-[9px] font-mono text-center tracking-widest uppercase text-emerald-400 mt-1">
-                    STATUS: {analystFeedback[selectedEvent.id].label.replace('_', ' ')}
-                  </div>
-                )}
-              </div>
+            {/* Event Action Utilities */}
+            <div className="flex space-x-2 mb-4 pb-4 border-b border-indigo-900/30">
+              <button 
+                onClick={handleCopyEvent}
+                disabled={!selectedEvent.raw}
+                className="flex-1 flex items-center justify-center bg-[#060913] border border-slate-700 hover:border-slate-500 hover:bg-slate-800 text-slate-300 py-2 rounded transition-colors uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {copyStatus === 'success' ? 'COPIED ✓' : copyStatus === 'error' ? 'COPY FAILED' : <><Copy className="w-3 h-3 mr-2" /> COPY EVENT</>}
+              </button>
+              <button 
+                onClick={() => navigateTo('analytics', selectedEvent.id)}
+                className="flex-1 flex items-center justify-center bg-purple-900/30 border border-purple-500/50 hover:bg-purple-900/50 text-purple-300 py-2 rounded transition-colors uppercase tracking-widest"
+              >
+                <ActivitySquare className="w-3 h-3 mr-2" /> THREAT STREAM
+              </button>
             </div>
+
+            {/* AUTOMATED AI THREAT ASSESSMENT PANEL */}
+            <div className="flex-1 flex flex-col space-y-3">
+               {isAnalyzing ? (
+                 <div className="flex items-center text-slate-400 text-[10px] uppercase tracking-widest p-4 border border-slate-800 bg-[#02040a]">
+                   <span className="w-1.5 h-1.5 bg-purple-500 rounded-full mr-2 animate-pulse"></span>
+                   Analyzing event...
+                 </div>
+               ) : aiAssessment ? (
+                 <>
+                    <h4 className="text-[10px] font-bold text-purple-400 uppercase tracking-widest flex items-center">
+                      <Cpu className="w-3 h-3 mr-1.5" /> AI THREAT ASSESSMENT
+                    </h4>
+                    
+                    <div className="grid grid-cols-2 gap-2 text-[9px] bg-[#030712] p-2 border border-indigo-900/30 rounded">
+                       <div><span className="text-slate-500 block mb-0.5">VERDICT</span> <span className={`font-bold ${aiAssessment.verdict === 'THREAT' ? 'text-rose-500' : 'text-emerald-500'}`}>{aiAssessment.verdict === 'FALSE POSITIVE' ? '✓ FALSE POSITIVE' : '⚠ THREAT'}</span></div>
+                       <div><span className="text-slate-500 block mb-0.5">CONFIDENCE</span> <span className="text-slate-200">{(aiAssessment.confidence * 100).toFixed(1)}%</span></div>
+                       <div><span className="text-slate-500 block mb-0.5">THREAT TYPE</span> <span className="text-slate-200">{aiAssessment.threat_type}</span></div>
+                       <div><span className="text-slate-500 block mb-0.5">SEVERITY</span> <span className="text-slate-200">{aiAssessment.severity}</span></div>
+                    </div>
+
+                    <div className="bg-[#030712] p-2 border border-indigo-900/30 rounded text-[9px]">
+                       <span className="text-slate-500 block mb-1 uppercase tracking-widest">Why was this flagged?</span>
+                       <p className="text-slate-300 leading-relaxed mb-2">{aiAssessment.explanation}</p>
+                       <span className="text-slate-500 block mb-1 uppercase tracking-widest">Evidence</span>
+                       <ul className="list-disc list-inside text-slate-300 space-y-0.5 ml-1">
+                         {aiAssessment.evidence.map((ev, i) => <li key={i}>{ev}</li>)}
+                       </ul>
+                    </div>
+
+                    <div className="bg-[#030712] p-2 border border-indigo-900/30 rounded text-[9px]">
+                       <span className="text-slate-500 block mb-1 uppercase tracking-widest">Model Consensus</span>
+                       <div className="space-y-1 mb-2">
+                         {Object.entries(aiAssessment.model_consensus).map(([modelKey, data]) => (
+                           <div key={modelKey} className="flex justify-between items-center">
+                              <span className="text-slate-400 capitalize">{modelKey.replace('_', ' ')}</span>
+                              <span className="text-slate-300">
+                                <span className={data.verdict === 'THREAT' ? 'text-rose-400' : 'text-emerald-400'}>{data.verdict}</span>
+                                <span className="ml-2 opacity-70">{(data.confidence * 100).toFixed(0)}%</span>
+                              </span>
+                           </div>
+                         ))}
+                       </div>
+                       <div className="border-t border-indigo-900/30 pt-1.5 flex justify-between items-center font-bold">
+                         <span className="text-purple-400 uppercase">Final AI Decision</span>
+                         <span className={aiAssessment.verdict === 'THREAT' ? 'text-rose-500' : 'text-emerald-500'}>{aiAssessment.verdict} — {(aiAssessment.confidence * 100).toFixed(1)}%</span>
+                       </div>
+                    </div>
+
+                    <div className="bg-purple-900/10 p-2 border border-purple-500/30 rounded text-[9px]">
+                       <span className="text-purple-400 block mb-0.5 uppercase tracking-widest font-bold">AI Recommendation</span>
+                       <p className="text-slate-300">{aiAssessment.recommended_action}</p>
+                    </div>
+
+                    <div className="mt-2 pt-2 border-t border-indigo-900/30">
+                      <span className="text-slate-500 block mb-1.5 text-[9px] uppercase tracking-widest text-center">Analyst Feedback</span>
+                      <div className="flex space-x-2">
+                        <button 
+                          onClick={() => handleFeedback(selectedEvent.id, 'AGREED_WITH_AI')}
+                          className="flex-1 bg-[#060913] hover:bg-emerald-900/20 border border-slate-700 hover:border-emerald-500/40 text-slate-300 hover:text-emerald-400 text-[9px] font-mono tracking-widest uppercase py-2 rounded transition-all text-center"
+                        >
+                          [ AGREE WITH AI ]
+                        </button>
+                        <button 
+                          onClick={() => handleFeedback(selectedEvent.id, 'OVERRIDE_AI')}
+                          className="flex-1 bg-[#060913] hover:bg-amber-900/20 border border-slate-700 hover:border-amber-500/40 text-slate-300 hover:text-amber-400 text-[9px] font-mono tracking-widest uppercase py-2 rounded transition-all text-center"
+                        >
+                          [ OVERRIDE AI ]
+                        </button>
+                      </div>
+                      {analystFeedback[selectedEvent.id] && (
+                        <div className="text-[9px] font-mono text-center tracking-widest uppercase text-emerald-400 mt-2 p-1.5 bg-emerald-900/20 border border-emerald-500/30 rounded">
+                          STATUS RECORDED: {analystFeedback[selectedEvent.id].label.replace(/_/g, ' ')}
+                        </div>
+                      )}
+                    </div>
+                 </>
+               ) : (
+                 <div className="flex items-center text-slate-500 text-[10px] uppercase tracking-widest p-4 border border-slate-800 bg-[#02040a]">
+                   Waiting for backend inference...
+                 </div>
+               )}
+            </div>
+            
           </div>
         </div>
       </div>
