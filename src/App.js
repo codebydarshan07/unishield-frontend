@@ -64,7 +64,7 @@ const getSeverityColor = (severity) => {
 // ============================================================================
 export default function UniShieldDashboard() {
   const [pulse, setPulse] = useState(false);
-  const [activePage, setActivePage] = useState('logs'); 
+  const [activePage, setActivePage] = useState('overview'); 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   useEffect(() => {
@@ -211,7 +211,8 @@ export default function UniShieldDashboard() {
           </header>
 
           <div className="flex-1 overflow-y-auto p-4 md:p-5">
-            <div className="flex flex-col space-y-4 md:space-y-5 h-full max-w-[1600px] mx-auto">
+            {/* BUG FIX #2: Replaced h-full with min-h-full to prevent vertical layout clipping */}
+            <div className="flex flex-col space-y-4 md:space-y-5 min-h-full max-w-[1600px] mx-auto pb-6">
               {activePage === 'overview' && <ExecutiveView />}
               {activePage === 'stream' && <LiveStreamView />}
               {activePage === 'analytics' && <AnalyticsView />}
@@ -226,35 +227,56 @@ export default function UniShieldDashboard() {
 }
 
 // ============================================================================
-// FULL VIEWS 
+// EXECUTIVE SOC VIEW (OVERVIEW) - FULLY REDESIGNED & FIXED
 // ============================================================================
 
 function ExecutiveView() {
   const pipelineStages = [
-    { label: 'Zeek Sensor', status: 'ONLINE', subtext: '3/3 sensors', icon: <Terminal className="w-3.5 h-3.5 text-purple-400"/> },
-    { label: 'Kafka Ingest', status: 'ACTIVE', subtext: '18.4K flows/s', icon: <Database className="w-3.5 h-3.5 text-purple-400"/> },
-    { label: 'Feature Extraction', status: 'ONLINE', subtext: '< 10 ms', icon: <Cpu className="w-3.5 h-3.5 text-purple-400"/> },
-    { label: 'ML Inference', status: 'ONLINE', subtext: '42 ms avg', icon: <Activity className="w-3.5 h-3.5 text-purple-400"/> },
-    { label: 'Alert Engine', status: 'ONLINE', subtext: 'Emitting alerts', icon: <Radio className="w-3.5 h-3.5 text-purple-400"/> },
+    { label: 'Zeek Sensor', status: 'ONLINE', icon: <Terminal className="w-3.5 h-3.5 text-purple-400"/> },
+    { label: 'Kafka Ingest', status: 'ACTIVE', icon: <Database className="w-3.5 h-3.5 text-purple-400"/> },
+    { label: 'Feature Extr.', status: 'ONLINE', icon: <Cpu className="w-3.5 h-3.5 text-purple-400"/> },
+    { label: 'ML Inference', status: 'ONLINE', icon: <Activity className="w-3.5 h-3.5 text-purple-400"/> },
+    { label: 'Alert Engine', status: 'ONLINE', icon: <Radio className="w-3.5 h-3.5 text-purple-400"/> },
   ];
 
+  // BUG FIX #1: Custom tooltip returns null entirely when inactive. 
+  // Guarantees no permanent visual element blocks the chart.
+  const CustomOverviewTooltip = ({ active, payload }) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-[#030712] border border-indigo-900/50 p-2 shadow-xl rounded-sm z-[100]">
+          <p className="text-[10px] font-mono text-slate-200 m-0 flex items-center">
+            <span style={{ backgroundColor: payload[0].payload.color }} className="w-2 h-2 mr-2 inline-block rounded-sm"></span>
+            <span>{payload[0].name}</span>
+            <span className="text-slate-400 ml-3 font-bold">{payload[0].value}%</span>
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
-    <div className="flex flex-col h-full space-y-4 md:space-y-5">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5 shrink-0">
-        <KpiCard title="TOTAL ALERTS (24H)" value="1,248" subtext="Metadata-only detections" icon={<Target />} trend="↑ +12%" />
-        <KpiCard title="CRITICAL BREACHES" value="4" subtext="High severity incidents" icon={<AlertTriangle />} trend="↑ +33%" isCritical />
-        <KpiCard title="AI CONFIDENCE AVG" value="94.7%" subtext="Across 6 ML classifiers" icon={<Cpu />} trend="↑ +1.2%" isPurple />
-        <KpiCard title="DETECTION LATENCY" value="142 ms" subtext="End-to-end pipeline" icon={<Activity />} trend="↓ -18%" isPurple />
+    <>
+      {/* 1. COMPACT KPI CARDS */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
+        <KpiCard compact title="TOTAL ALERTS (24H)" value="1,248" subtext="Metadata-only detections" icon={<Target />} trend="↑ +12%" />
+        <KpiCard compact title="CRITICAL BREACHES" value="4" subtext="High severity incidents" icon={<AlertTriangle />} trend="↑ +33%" isCritical />
+        <KpiCard compact title="AI CONFIDENCE AVG" value="94.7%" subtext="Across 6 ML classifiers" icon={<Cpu />} trend="↑ +1.2%" isPurple />
+        <KpiCard compact title="DETECTION LATENCY" value="142 ms" subtext="End-to-end pipeline" icon={<Activity />} trend="↓ -18%" isPurple />
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-4 md:gap-5 shrink-0 min-h-[300px]">
-        <div className="flex-1 lg:flex-[0.65] bg-[#0a0f1c] border border-indigo-900/30 flex flex-col relative overflow-hidden group">
+      {/* 2. CHARTS ROW */}
+      <div className="flex flex-col lg:flex-row gap-4 md:gap-5">
+        
+        {/* Threat Activity Area Chart */}
+        <div className="flex-1 lg:flex-[0.68] bg-[#0a0f1c] border border-indigo-900/30 flex flex-col relative overflow-hidden group min-h-[340px]">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
           <div className="px-4 py-3 border-b border-indigo-900/30 flex justify-between items-center bg-[#060913]/50">
             <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase">THREAT ACTIVITY — LAST 60 MIN</h3>
             <span className="text-[9px] font-mono border border-emerald-900/50 text-emerald-500 bg-emerald-950/20 px-1.5 py-0.5 rounded">[ LIVE ]</span>
           </div>
-          <div className="flex-1 p-2 md:p-4 min-h-[200px] relative">
+          <div className="flex-1 p-2 md:p-4 relative">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={threatActivityData} margin={{ top: 5, right: 0, left: -25, bottom: 0 }}>
                 <defs>
@@ -274,69 +296,88 @@ function ExecutiveView() {
           </div>
         </div>
 
-        <div className="flex-1 lg:flex-[0.35] bg-[#0a0f1c] border border-indigo-900/30 flex flex-col relative overflow-hidden">
+        {/* Threat Classes Donut Chart */}
+        <div className="flex-1 lg:flex-[0.32] bg-[#0a0f1c] border border-indigo-900/30 flex flex-col relative overflow-hidden min-h-[340px]">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
           <div className="px-4 py-3 border-b border-indigo-900/30 bg-[#060913]/50">
             <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase">THREAT CLASSES</h3>
           </div>
           <div className="flex-1 flex flex-col p-4">
-            <div className="flex-1 flex items-center justify-center relative min-h-[150px]">
+            
+            {/* Donut Container */}
+            <div className="flex-1 relative min-h-[140px]">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={threatDistribution} innerRadius="65%" outerRadius="85%" paddingAngle={2} dataKey="value" stroke="none">
+                  <Pie 
+                    data={threatDistribution} 
+                    innerRadius="68%" 
+                    outerRadius="90%" 
+                    paddingAngle={2} 
+                    dataKey="value" 
+                    stroke="none"
+                    isAnimationActive={false}
+                  >
                     {threatDistribution.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                   </Pie>
-                  <RechartsTooltip contentStyle={{ backgroundColor: '#030712', border: '1px solid #312e81', fontSize: '11px', fontFamily: 'monospace' }} />
+                  <RechartsTooltip content={<CustomOverviewTooltip />} cursor={{fill: 'transparent'}} />
                 </PieChart>
               </ResponsiveContainer>
+              
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-2xl font-mono font-bold text-slate-200">27</span>
+                <span className="text-2xl lg:text-3xl font-mono font-light text-slate-200">27</span>
                 <span className="text-[9px] font-mono text-slate-500 uppercase tracking-widest mt-0.5">Active Threats</span>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-x-2 gap-y-2 mt-4 pt-4 border-t border-indigo-900/30">
-              {threatDistribution.slice(0, 4).map((dist, i) => (
-                <div key={i} className="flex items-center justify-between text-[10px] font-mono">
-                  <div className="flex items-center truncate">
-                    <span className="w-1.5 h-1.5 mr-1.5 shrink-0" style={{ backgroundColor: dist.color }}></span>
-                    <span className="text-slate-400 truncate w-16">{dist.name}</span>
+
+            {/* Static Clean Legend */}
+            <div className="mt-4 pt-4 border-t border-indigo-900/30">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-2">
+                {threatDistribution.map((dist, i) => (
+                  <div key={i} className="flex items-center justify-between text-[10px] font-mono pr-2">
+                    <div className="flex items-center truncate">
+                      <span className="w-1.5 h-1.5 mr-2 shrink-0" style={{ backgroundColor: dist.color }}></span>
+                      <span className="text-slate-400 truncate w-[85px] xl:w-[95px]">{dist.name}</span>
+                    </div>
+                    <span className="text-slate-200 font-bold">{dist.value}%</span>
                   </div>
-                  <span className="text-slate-300">{dist.value}%</span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
+
           </div>
         </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-4 md:gap-5 flex-1 min-h-[260px]">
-        <div className="flex-1 lg:flex-[0.5] bg-[#0a0f1c] border border-indigo-900/30 flex flex-col relative overflow-hidden">
-          <div className="px-4 py-3 border-b border-indigo-900/30 bg-[#060913]/50 flex justify-between items-center">
+      {/* 3. LOWER CONTENT ROW */}
+      <div className="flex flex-col lg:flex-row gap-4 md:gap-5">
+        
+        {/* Live Threat Feed */}
+        <div className="flex-1 lg:flex-[0.48] bg-[#0a0f1c] border border-indigo-900/30 flex flex-col relative overflow-hidden min-h-[300px]">
+          <div className="px-4 py-3 border-b border-indigo-900/30 bg-[#060913]/50 flex justify-between items-center shrink-0">
             <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase">LIVE THREAT FEED</h3>
-            <button className="text-[9px] font-mono text-purple-400 hover:text-purple-300 uppercase tracking-widest">View All →</button>
           </div>
-          <div className="flex-1 overflow-x-auto">
+          <div className="flex-1 overflow-y-auto min-h-0">
             <table className="w-full text-left whitespace-nowrap">
-              <thead className="text-[9px] text-slate-500 font-mono uppercase bg-[#04060d]">
+              <thead className="text-[9px] text-slate-500 font-mono uppercase bg-[#04060d] sticky top-0 z-10 shadow-sm border-b border-indigo-900/30">
                 <tr>
-                  <th className="px-4 py-2.5 font-normal border-b border-indigo-900/30">SEVERITY</th>
-                  <th className="px-4 py-2.5 font-normal border-b border-indigo-900/30">SOURCE IP</th>
-                  <th className="px-4 py-2.5 font-normal border-b border-indigo-900/30">DETECTION</th>
-                  <th className="px-4 py-2.5 font-normal border-b border-indigo-900/30 text-right">TIME</th>
+                  <th className="px-4 py-2.5 font-normal">SEVERITY</th>
+                  <th className="px-4 py-2.5 font-normal">SOURCE IP</th>
+                  <th className="px-4 py-2.5 font-normal">DETECTION</th>
+                  <th className="px-4 py-2.5 font-normal text-right">TIME</th>
                 </tr>
               </thead>
               <tbody className="font-mono text-[11px]">
-                {overviewAlerts.slice(0, 5).map((alert, i) => (
+                {overviewAlerts.map((alert, i) => (
                   <tr key={i} className="border-b border-indigo-900/20 hover:bg-indigo-950/20 transition-colors">
-                    <td className="px-4 py-2.5">
+                    <td className="px-4 py-3">
                       <span className="flex items-center text-slate-300">
                         <span className={`w-1.5 h-1.5 rounded-full mr-2 ${getSeverityColor(alert.severity)}`}></span>
                         {alert.severity}
                       </span>
                     </td>
-                    <td className="px-4 py-2.5 text-slate-300">{alert.source}</td>
-                    <td className="px-4 py-2.5 text-purple-400">{alert.detection}</td>
-                    <td className="px-4 py-2.5 text-slate-500 text-right">{alert.time}</td>
+                    <td className="px-4 py-3 text-slate-300">{alert.source}</td>
+                    <td className="px-4 py-3 text-purple-400">{alert.detection}</td>
+                    <td className="px-4 py-3 text-slate-500 text-right">{alert.time}</td>
                   </tr>
                 ))}
               </tbody>
@@ -344,14 +385,15 @@ function ExecutiveView() {
           </div>
         </div>
 
-        <div className="flex-1 lg:flex-[0.25] bg-[#0a0f1c] border border-indigo-900/30 flex flex-col relative overflow-hidden">
-          <div className="px-4 py-3 border-b border-indigo-900/30 bg-[#060913]/50">
+        {/* Detection Pipeline */}
+        <div className="flex-1 lg:flex-[0.26] bg-[#0a0f1c] border border-indigo-900/30 flex flex-col relative overflow-hidden min-h-[300px]">
+          <div className="px-4 py-3 border-b border-indigo-900/30 bg-[#060913]/50 shrink-0">
             <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase">DETECTION PIPELINE</h3>
           </div>
           <div className="flex-1 flex flex-col justify-between p-5 relative font-mono">
-            <div className="hidden md:block absolute left-[33px] top-8 bottom-8 w-[1px] bg-indigo-900/50"></div>
+            <div className="absolute left-[33px] top-8 bottom-8 w-[1px] bg-indigo-900/50"></div>
             {pipelineStages.map((stage, i) => (
-              <div key={i} className="flex items-center relative z-10 mb-3 md:mb-0 last:mb-0">
+              <div key={i} className="flex items-center relative z-10 mb-3 last:mb-0">
                 <div className="w-7 h-7 rounded border border-indigo-900/50 bg-[#060913] flex items-center justify-center mr-3 shadow-[0_0_10px_rgba(79,70,229,0.1)] shrink-0">
                   {stage.icon}
                 </div>
@@ -359,7 +401,7 @@ function ExecutiveView() {
                   <span className="text-[11px] text-slate-300 leading-tight">{stage.label}</span>
                   <div className="flex items-center mt-0.5">
                     <span className="text-[9px] text-emerald-400 flex items-center tracking-widest">
-                      <span className="w-1 h-1 rounded-full bg-emerald-500 mr-1.5"></span>
+                      <span className="w-1 h-1 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>
                       {stage.status}
                     </span>
                   </div>
@@ -369,12 +411,12 @@ function ExecutiveView() {
           </div>
         </div>
 
-        <div className="flex-1 lg:flex-[0.25] bg-[#0a0f1c] border border-indigo-900/30 flex flex-col relative overflow-hidden">
-          <div className="px-4 py-3 border-b border-indigo-900/30 bg-[#060913]/50 flex justify-between items-center">
+        {/* Top Threat Sources */}
+        <div className="flex-1 lg:flex-[0.26] bg-[#0a0f1c] border border-indigo-900/30 flex flex-col relative overflow-hidden min-h-[300px]">
+          <div className="px-4 py-3 border-b border-indigo-900/30 bg-[#060913]/50 shrink-0">
             <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase">TOP THREAT SOURCES</h3>
-            <span className="text-[9px] font-mono text-slate-500 border border-slate-800 px-1.5 py-0.5 rounded hidden sm:inline-block">1 Hour</span>
           </div>
-          <div className="flex-1 p-4 flex flex-col justify-center space-y-3 font-mono">
+          <div className="flex-1 p-4 flex flex-col justify-center space-y-4 font-mono">
             {topSources.map((source, i) => (
               <div key={i} className="flex flex-col space-y-1.5">
                 <div className="flex justify-between text-[10px]">
@@ -388,10 +430,15 @@ function ExecutiveView() {
             ))}
           </div>
         </div>
+
       </div>
-    </div>
+    </>
   );
 }
+
+// ============================================================================
+// OTHER VIEWS
+// ============================================================================
 
 function LiveStreamView() {
   const [selectedEventId, setSelectedEventId] = useState('EVT-9021');
@@ -704,13 +751,9 @@ function AnalyticsView() {
   );
 }
 
-// ============================================================================
-// ZEEK LOGS VIEW (COMPLETELY REDESIGNED)
-// ============================================================================
 function ZeekLogsView() {
   const [selectedEventId, setSelectedEventId] = useState('Cn2b211');
 
-  // Realistic Zeek Event Mock Data (Section 3 format)
   const zeekEvents = [
     {
       id: 'CjH2u123', ts: '16:55:04.12', log: 'conn.log', uid: 'CjH2u123', 
@@ -1113,7 +1156,7 @@ function SidebarBtn({ icon, label, active, badge, pulse, onClick }) {
   );
 }
 
-function KpiCard({ title, value, subtext, icon, trend, isCritical, isPurple }) {
+function KpiCard({ title, value, subtext, icon, trend, isCritical, isPurple, compact }) {
   let iconColor = 'text-slate-500';
   let valueColor = 'text-slate-200';
   let trendColor = trend.includes('↑') && !isCritical ? 'text-emerald-400' : 
@@ -1128,21 +1171,21 @@ function KpiCard({ title, value, subtext, icon, trend, isCritical, isPurple }) {
   }
 
   return (
-    <div className="bg-[#0a0f1c] border border-indigo-900/30 p-3 md:p-4 flex flex-col relative overflow-hidden group">
+    <div className={`bg-[#0a0f1c] border border-indigo-900/30 flex flex-col relative overflow-hidden group min-h-[110px] ${compact ? 'p-3' : 'p-3 md:p-4'}`}>
       <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
       
-      <div className="flex justify-between items-start mb-2 md:mb-3">
+      <div className={`flex justify-between items-start ${compact ? 'mb-1' : 'mb-2 md:mb-3'}`}>
         <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest font-mono truncate mr-2">{title}</span>
         <div className={`${iconColor} shrink-0`}>{icon}</div>
       </div>
       
       <div className="flex items-end justify-between mt-auto">
-        <div>
-          <div className={`text-2xl lg:text-3xl font-light font-mono tracking-tight ${valueColor}`}>{value}</div>
-          <div className="text-[9px] md:text-[10px] text-slate-500 mt-0.5 md:mt-1 font-mono truncate max-w-[120px] sm:max-w-full">{subtext}</div>
+        <div className="flex flex-col">
+          <div className={`text-2xl lg:text-3xl font-light font-mono tracking-tight leading-none mb-1 ${valueColor}`}>{value}</div>
+          <div className="text-[9px] md:text-[10px] text-slate-500 font-mono truncate max-w-[120px] sm:max-w-[160px]">{subtext}</div>
         </div>
         {trend && (
-          <div className={`text-[9px] md:text-[10px] font-mono mb-0.5 md:mb-1 shrink-0 ${trendColor}`}>
+          <div className={`text-[9px] md:text-[10px] font-mono shrink-0 ${trendColor}`}>
             {trend}
           </div>
         )}
