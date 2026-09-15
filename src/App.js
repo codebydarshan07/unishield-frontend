@@ -50,8 +50,6 @@ const getSeverityBg = (severity) => {
 // ============================================================================
 // LIVE BACKEND ADAPTER (Simulates WebSockets / Real Backend Data Contract)
 // ============================================================================
-// This hook provides the single source of truth for the entire application.
-// In production, replace the `setInterval` with your actual WebSocket/SSE listener.
 function useLiveBackend() {
   const [events, setEvents] = useState([]);
   const [connectionState, setConnectionState] = useState('CONNECTING');
@@ -59,7 +57,6 @@ function useLiveBackend() {
   useEffect(() => {
     let isMounted = true;
     
-    // 1. Initial Historical Load
     setTimeout(() => {
       if (!isMounted) return;
       const initialEvents = generateHistoricalBackendEvents();
@@ -67,18 +64,15 @@ function useLiveBackend() {
       setConnectionState('LIVE');
     }, 1000);
 
-    // 2. Live Event Stream (Simulating incoming backend data)
     const streamInterval = setInterval(() => {
       if (!isMounted) return;
       
       const newEvent = createBackendEventContract(new Date());
       setEvents(prev => {
-        // Keep last 1000 events to prevent memory leaks in browser
         const updated = [newEvent, ...prev].slice(0, 1000);
         return updated;
       });
 
-      // Simulate a network drop randomly (1% chance) to demonstrate disconnected UI
       if (Math.random() < 0.01) {
         setConnectionState('DISCONNECTED');
         setTimeout(() => isMounted && setConnectionState('RECONNECTING'), 3000);
@@ -95,7 +89,6 @@ function useLiveBackend() {
   return { events, connectionState };
 }
 
-// Generates the strict data contract expected from your Python/ML backend
 function createBackendEventContract(dateObj) {
   const isThreat = Math.random() > 0.3;
   const isCritical = isThreat && Math.random() > 0.8;
@@ -115,7 +108,6 @@ function createBackendEventContract(dateObj) {
     dst_ip: `198.51.100.${Math.floor(Math.random() * 255)}`,
     ports: [53, 80, 443, 8080, 22][Math.floor(Math.random() * 5)],
     
-    // AI Threat Assessment Contract
     ai_assessment: {
       threat_type: type,
       severity: severity,
@@ -157,7 +149,6 @@ function createBackendEventContract(dateObj) {
         payload_variance: 'MED'
       }
     },
-    // Raw Zeek Log
     raw_event: {
       "ts": dateObj.getTime() / 1000,
       "uid": eventId,
@@ -176,7 +167,6 @@ function createBackendEventContract(dateObj) {
 function generateHistoricalBackendEvents() {
   const events = [];
   const now = new Date();
-  // Generate 150 events spread across the last 24 hours to populate the honeycomb
   for (let i = 0; i < 150; i++) {
     const pastDate = new Date(now.getTime() - Math.random() * 24 * 60 * 60 * 1000);
     events.push(createBackendEventContract(pastDate));
@@ -194,7 +184,6 @@ export default function UniShieldDashboard() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
 
-  // Use the global live backend hook
   const { events, connectionState } = useLiveBackend();
   
   useEffect(() => {
@@ -376,7 +365,14 @@ export default function UniShieldDashboard() {
 // ============================================================================
 
 function ExecutiveView({ events, navigateTo }) {
-  // Aggregate real KPIs from events
+  const topSources = [
+    { ip: '10.24.18.42', count: 312, width: '100%' },
+    { ip: '10.24.21.17', count: 241, width: '77%' },
+    { ip: '10.24.19.08', count: 198, width: '63%' },
+    { ip: '10.24.14.63', count: 156, width: '50%' },
+    { ip: '10.24.22.91', count: 121, width: '38%' },
+  ];
+
   const totalAlerts = events.length;
   const criticalBreaches = events.filter(e => e.ai_assessment.severity === 'CRITICAL').length;
   
@@ -384,7 +380,6 @@ function ExecutiveView({ events, navigateTo }) {
     ? (events.reduce((acc, e) => acc + e.ai_assessment.confidence, 0) / events.length * 100).toFixed(1) + '%'
     : 'N/A';
 
-  // Extract threat classes dynamically
   const threatCounts = events.reduce((acc, e) => {
     acc[e.ai_assessment.threat_type] = (acc[e.ai_assessment.threat_type] || 0) + 1;
     return acc;
@@ -424,9 +419,6 @@ function ExecutiveView({ events, navigateTo }) {
     return null;
   };
 
-  // -------------------------------------------------------------
-  // EXACT 24-HOUR HONEYCOMB LOGIC (Rolling 24 Hours)
-  // -------------------------------------------------------------
   const honeycombBuckets = useMemo(() => {
     const buckets = Array.from({length: 24}, (_, i) => ({
       hour: pad(i),
@@ -438,7 +430,6 @@ function ExecutiveView({ events, navigateTo }) {
     const oneDayMs = 24 * 60 * 60 * 1000;
     
     events.forEach(e => {
-      // Only aggregate events from the past 24 hours
       if (now - e.timestamp <= oneDayMs) {
         const h = new Date(e.timestamp).getHours();
         buckets[h].events.push(e);
@@ -468,11 +459,8 @@ function ExecutiveView({ events, navigateTo }) {
     const critCount = bucket.events.filter(e => e.ai_assessment.severity === 'CRITICAL').length;
     const highCount = bucket.events.filter(e => e.ai_assessment.severity === 'HIGH').length;
 
-    // Calculate top threat type
     const types = bucket.events.reduce((acc, e) => { acc[e.ai_assessment.threat_type] = (acc[e.ai_assessment.threat_type] || 0) + 1; return acc; }, {});
     const topType = Object.entries(types).sort((a,b) => b[1]-a[1])[0]?.[0] || 'N/A';
-    
-    // Calculate peak confidence
     const peakConf = bucket.events.length > 0 ? Math.max(...bucket.events.map(e => e.ai_assessment.confidence)) : 0;
 
     return (
@@ -510,12 +498,8 @@ function ExecutiveView({ events, navigateTo }) {
             <span className="text-[9px] font-mono border border-emerald-900/50 text-emerald-500 bg-emerald-950/20 px-1.5 py-0.5 rounded">[ ROLLING 24H ]</span>
           </div>
           <div className="flex-1 flex items-center justify-center p-4 relative overflow-visible">
-            
-            {/* EXACT 24 CONNECTED HONEYCOMB CELLS */}
             <div className="relative flex flex-col items-center justify-center">
               <HoneycombTooltip />
-              
-              {/* ROW 1: 00 to 11 */}
               <div className="flex gap-1 z-10">
                 {honeycombBuckets.slice(0, 12).map(b => (
                   <div 
@@ -530,8 +514,6 @@ function ExecutiveView({ events, navigateTo }) {
                   </div>
                 ))}
               </div>
-              
-              {/* ROW 2: 12 to 23 (offset horizontally and vertically to interlock) */}
               <div className="flex gap-1 z-0" style={{ marginTop: '-13px', marginLeft: '48px' }}>
                 {honeycombBuckets.slice(12, 24).map(b => (
                   <div 
@@ -547,7 +529,6 @@ function ExecutiveView({ events, navigateTo }) {
                 ))}
               </div>
             </div>
-
           </div>
         </div>
 
@@ -685,7 +666,6 @@ function ExecutiveView({ events, navigateTo }) {
 // ============================================================================
 function LiveStreamView({ events, navigateTo, globalSelectedEventId, setGlobalSelectedEventId }) {
   
-  // Sort priority queue: Critical Threats first, then high, then descending time
   const sortedEvents = useMemo(() => {
     return [...events].sort((a, b) => {
       if (a.ai_assessment.verdict === 'THREAT' && b.ai_assessment.verdict !== 'THREAT') return -1;
@@ -719,7 +699,7 @@ function LiveStreamView({ events, navigateTo, globalSelectedEventId, setGlobalSe
       <div className="flex flex-col lg:flex-row gap-4 md:gap-5 shrink-0 min-h-[340px]">
         <div className="flex-1 lg:flex-[0.65] bg-[#0a0f1c] border border-indigo-900/30 flex flex-col relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
-          <div className="px-4 py-3 border-b border-indigo-900/30 bg-[#060913]/50 flex justify-between items-center">
+          <div className="px-4 py-3 border-b border-indigo-900/30 bg-[#060913]/50">
             <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase">AI PRIORITY QUEUE</h3>
           </div>
           
@@ -757,7 +737,6 @@ function LiveStreamView({ events, navigateTo, globalSelectedEventId, setGlobalSe
                       <span className="text-[10px] text-slate-500 w-12 sm:w-16">{evt.timeLabel}</span>
                     </div>
                   </div>
-                  {/* Priority Queue Explanation preview */}
                   <div className="mt-2 pt-2 border-t border-indigo-900/20 text-[9px] text-slate-400 truncate">
                     <span className="font-bold text-slate-300">AI:</span> {evt.ai_assessment.explanation}
                   </div>
@@ -799,12 +778,14 @@ function LiveStreamView({ events, navigateTo, globalSelectedEventId, setGlobalSe
                 </div>
               </div>
               
-              <button 
-                onClick={() => navigateTo('analytics', selectedEvent.id)}
-                className="w-full mt-4 bg-purple-900/30 hover:bg-purple-900/50 border border-purple-500/50 text-purple-300 text-[10px] font-mono tracking-widest uppercase py-2 rounded transition-all active:scale-[0.98] text-center shadow-[0_0_10px_rgba(168,85,247,0.1)] hover:shadow-[0_0_15px_rgba(168,85,247,0.2)]"
-              >
-                [ INVESTIGATE IN THREAT ANALYTICS ]
-              </button>
+              <div className="mt-4 flex flex-col space-y-2">
+                <button 
+                  onClick={() => navigateTo('analytics', selectedEvent.id)}
+                  className="w-full bg-purple-900/30 hover:bg-purple-900/50 border border-purple-500/50 text-purple-300 text-[10px] font-mono tracking-widest uppercase py-2 rounded transition-all active:scale-[0.98] text-center shadow-[0_0_10px_rgba(168,85,247,0.1)] hover:shadow-[0_0_15px_rgba(168,85,247,0.2)]"
+                >
+                  [ INVESTIGATE IN THREAT ANALYTICS ]
+                </button>
+              </div>
             </div>
           ) : (
             <div className="flex-1 flex items-center justify-center text-[10px] font-mono text-slate-500">No event selected</div>
@@ -857,8 +838,6 @@ function LiveStreamView({ events, navigateTo, globalSelectedEventId, setGlobalSe
 // ============================================================================
 function AnalyticsView({ events, globalSelectedEventId, navigateTo }) {
   const analyzeRef = useRef(null);
-  
-  // Single source of truth lookup
   const analyzedEvent = globalSelectedEventId ? events.find(e => e.id === globalSelectedEventId) : null;
 
   useEffect(() => {
@@ -887,7 +866,6 @@ function AnalyticsView({ events, globalSelectedEventId, navigateTo }) {
     { name: 'LSTM', ms: 87 },
   ];
 
-  // Dynamic values mapped securely from backend contract
   const displayFeatures = analyzedEvent ? Object.entries(analyzedEvent.ai_assessment.features_extracted).map(([k, v]) => ({
     name: k.replace(/_/g, ' '),
     value: v === 'HIGH' ? 38 : v === 'MED' ? 18 : 8
@@ -900,7 +878,6 @@ function AnalyticsView({ events, globalSelectedEventId, navigateTo }) {
   return (
     <div className="flex flex-col h-full space-y-4 md:space-y-5">
       
-      {/* CONTEXTUAL EVENT BANNER */}
       {analyzedEvent && (
         <div ref={analyzeRef} className="bg-[#0a0f1c] border border-purple-500/50 p-4 shrink-0 shadow-[0_0_15px_rgba(168,85,247,0.15)] relative overflow-hidden">
           <div className="absolute top-0 left-0 w-1 h-full bg-purple-500"></div>
@@ -990,7 +967,7 @@ function AnalyticsView({ events, globalSelectedEventId, navigateTo }) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5 flex-1 min-h-[160px] mt-4">
         <div className="bg-[#0a0f1c] border border-indigo-900/30 flex flex-col p-4">
           <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase border-b border-indigo-900/30 pb-3 mb-4">
-            {analyzedEvent ? 'CORRELATED ACTIVITY' : 'DETECTION IMPACT'}
+            {analyzedEvent ? 'CORRELATED ACTIVITY' : 'RECENT ACTIVITY'}
           </h3>
           <div className="flex-1 flex flex-col justify-center space-y-3">
             {analyzedEvent ? (
@@ -1044,13 +1021,12 @@ function AnalyticsView({ events, globalSelectedEventId, navigateTo }) {
 }
 
 // ============================================================================
-// ZEEK LOGS VIEW (UPDATED FOR AI AUTOMATION - NO MANUAL FEEDBACK)
+// ZEEK LOGS VIEW
 // ============================================================================
 function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSelectedEventId }) {
-  // Pull from the live backend events
   const selectedEvent = events.find(e => e.id === globalSelectedEventId) || events[0];
   const [copyStatus, setCopyStatus] = useState('idle');
-
+  
   const handleCopyEvent = async () => {
     if (!selectedEvent?.raw_event) return;
     try {
@@ -1103,7 +1079,6 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
       </div>
 
       <div className="flex flex-col lg:flex-row gap-4 shrink-0 min-h-[450px]">
-        {/* LEFT PANEL: Zeek Event Stream */}
         <div className="flex-1 lg:flex-[0.60] bg-[#0a0f1c] border border-indigo-900/30 flex flex-col overflow-hidden relative">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
           <div className="px-4 py-2.5 border-b border-indigo-900/30 bg-[#060913]/50">
@@ -1135,7 +1110,6 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
           </div>
         </div>
 
-        {/* RIGHT PANEL: Event Inspector & AI Assessment */}
         <div className="flex-1 lg:flex-[0.40] bg-[#0a0f1c] border border-indigo-900/30 flex flex-col overflow-hidden relative">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
           <div className="px-4 py-2.5 border-b border-indigo-900/30 bg-[#060913]/50">
@@ -1145,7 +1119,6 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
           <div className="flex-1 overflow-y-auto p-4 flex flex-col text-[10px]">
             {selectedEvent ? (
               <>
-                {/* Event Metadata */}
                 <div className="grid grid-cols-2 gap-y-3 gap-x-2 mb-4">
                   <div><span className="text-slate-500 block mb-0.5">EVENT TYPE</span> <span className="text-slate-300">{selectedEvent.ai_assessment.threat_type}</span></div>
                   <div><span className="text-slate-500 block mb-0.5">LOG SOURCE</span> <span className="text-slate-300">{selectedEvent.log_source}</span></div>
@@ -1155,7 +1128,6 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
                   <div><span className="text-slate-500 block mb-0.5">DESTINATION</span> <span className="text-slate-300">{selectedEvent.dst_ip}:{selectedEvent.ports}</span></div>
                 </div>
 
-                {/* Event Action Utilities */}
                 <div className="flex space-x-2 mb-4 pb-4 border-b border-indigo-900/30">
                   <button 
                     onClick={handleCopyEvent}
@@ -1172,10 +1144,6 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
                   </button>
                 </div>
 
-                {/* ========================================================= */}
-                {/* NEW AUTOMATED AI THREAT ASSESSMENT PANEL                  */}
-                {/* NO ANALYST FEEDBACK - STRICTLY BACKEND DRIVEN             */}
-                {/* ========================================================= */}
                 <div className="flex-1 flex flex-col space-y-3">
                   <h4 className="text-[10px] font-bold text-purple-400 uppercase tracking-widest flex items-center">
                     <Cpu className="w-3 h-3 mr-1.5" /> AI THREAT ASSESSMENT
@@ -1216,7 +1184,6 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
                       </div>
                   </div>
 
-                  {/* AI Response Status - Driven completely by backend state */}
                   {selectedEvent.ai_assessment.response_status && (
                     <div className="bg-purple-900/10 p-2 border border-purple-500/30 rounded text-[9px]">
                         <span className="text-purple-400 block mb-2 uppercase tracking-widest font-bold">AI RESPONSE STATUS</span>
@@ -1255,7 +1222,6 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
                     </div>
                   )}
 
-                  {/* Raw Event Debug output preserved at bottom */}
                   <div className="mt-4">
                     <span className="text-slate-500 block mb-2 uppercase tracking-widest">RAW EVENT</span>
                     <pre className="bg-[#02040a] border border-slate-800 p-3 rounded text-[10px] text-indigo-300/80 overflow-x-auto whitespace-pre-wrap word-break-all">
@@ -1265,25 +1231,11 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
                 </div>
               </>
             ) : (
-              <div className="flex items-center justify-center h-full text-slate-500 uppercase tracking-widest">Waiting for live data...</div>
+              <div className="flex items-center justify-center h-full text-[10px] font-mono text-slate-500 uppercase tracking-widest">Waiting for live data...</div>
             )}
-            
           </div>
         </div>
       </div>
-
-      <div className="bg-[#0a0f1c] border border-indigo-900/30 p-3 shrink-0 flex flex-col md:flex-row md:items-center justify-between text-[10px] uppercase tracking-widest gap-3 md:gap-0">
-        <span className="text-slate-500 font-bold hidden lg:block">LOG SOURCES</span>
-        <div className="flex flex-wrap items-center gap-4 lg:gap-8 flex-1 lg:justify-center">
-          <div className="flex items-center"><span className="text-slate-400 w-20">conn.log</span> <span className="text-slate-200 font-bold">12.8K</span></div>
-          <div className="flex items-center"><span className="text-slate-400 w-20">dns.log</span> <span className="text-slate-200 font-bold">4.9K</span></div>
-          <div className="flex items-center"><span className="text-slate-400 w-20">ssl.log</span> <span className="text-slate-200 font-bold">1.8K</span></div>
-          <div className="flex items-center"><span className="text-slate-400 w-20">http.log</span> <span className="text-slate-200 font-bold">0.9K</span></div>
-          <div className="flex items-center"><span className="text-amber-500 w-20">notice.log</span> <span className="text-amber-400 font-bold">6</span></div>
-          <div className="flex items-center"><span className="text-rose-500 w-20">weird.log</span> <span className="text-rose-400 font-bold">4</span></div>
-        </div>
-      </div>
-
     </div>
   );
 }
