@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import { 
   Shield, Activity, AlertTriangle, Crosshair, 
-  Database, Layout, Terminal, Server, Cpu, 
+  Terminal, Server, Cpu, 
   Target, Radio, ShieldAlert,
   Search, ArrowRight, Menu, X, Filter, Copy, ActivitySquare, CheckCircle, Clock
 } from 'lucide-react';
@@ -48,7 +48,7 @@ const getSeverityBg = (severity) => {
 };
 
 // ============================================================================
-// LIVE BACKEND ADAPTER (Simulates WebSockets / Real Backend Data Contract)
+// LIVE BACKEND ADAPTER (Simulates Real Backend Data Contract)
 // ============================================================================
 function useLiveBackend() {
   const [events, setEvents] = useState([]);
@@ -69,7 +69,7 @@ function useLiveBackend() {
       
       const newEvent = createBackendEventContract(new Date());
       setEvents(prev => {
-        const updated = [newEvent, ...prev].slice(0, 1000);
+        const updated = [newEvent, ...prev].slice(0, 2000);
         return updated;
       });
 
@@ -78,7 +78,7 @@ function useLiveBackend() {
         setTimeout(() => isMounted && setConnectionState('RECONNECTING'), 3000);
         setTimeout(() => isMounted && setConnectionState('LIVE'), 6000);
       }
-    }, 4500);
+    }, 3500);
 
     return () => {
       isMounted = false;
@@ -90,20 +90,22 @@ function useLiveBackend() {
 }
 
 function createBackendEventContract(dateObj) {
-  const isThreat = Math.random() > 0.3;
-  const isCritical = isThreat && Math.random() > 0.8;
-  const severity = isCritical ? 'CRITICAL' : isThreat ? (Math.random() > 0.5 ? 'HIGH' : 'MEDIUM') : 'LOW';
+  const isThreat = Math.random() > 0.35;
+  const isCritical = isThreat && Math.random() > 0.85;
+  const severity = isCritical ? 'CRITICAL' : isThreat ? (Math.random() > 0.6 ? 'HIGH' : 'MEDIUM') : 'LOW';
   
   const threatTypes = ['Port Scan', 'DGA / DNS Anomaly', 'Beaconing', 'Anomalous Flow', 'Mismatched Cert'];
-  const type = threatTypes[Math.floor(Math.random() * threatTypes.length)];
+  const type = isThreat ? threatTypes[Math.floor(Math.random() * threatTypes.length)] : 'Normal Traffic';
   const srcIp = `10.24.${Math.floor(Math.random() * 50)}.${Math.floor(Math.random() * 255)}`;
   const eventId = `EVT-${Math.floor(Math.random() * 90000) + 10000}`;
+  const logSource = Math.random() > 0.5 ? 'conn.log' : Math.random() > 0.5 ? 'dns.log' : 'ssl.log';
+  const proto = ['TCP', 'UDP', 'ICMP', 'DNS'][Math.floor(Math.random() * 4)];
 
   return {
     id: eventId,
     timestamp: dateObj.getTime(),
     timeLabel: `${pad(dateObj.getHours())}:${pad(dateObj.getMinutes())}:${pad(dateObj.getSeconds())}`,
-    log_source: Math.random() > 0.5 ? 'conn.log' : 'dns.log',
+    log_source: logSource,
     src_ip: srcIp,
     dst_ip: `198.51.100.${Math.floor(Math.random() * 255)}`,
     ports: [53, 80, 443, 8080, 22][Math.floor(Math.random() * 5)],
@@ -131,7 +133,6 @@ function createBackendEventContract(dateObj) {
         random_forest: { verdict: isThreat ? 'THREAT' : 'FALSE POSITIVE', confidence: 0.94 },
         xgboost: { verdict: isThreat ? 'THREAT' : 'THREAT', confidence: 0.81 },
         autoencoder: { verdict: 'FALSE POSITIVE', confidence: 0.88 },
-        lstm_dga: { verdict: isThreat ? 'THREAT' : 'FALSE POSITIVE', confidence: 0.96 },
       },
       response_status: isCritical ? {
         state: 'NEUTRALIZED',
@@ -156,7 +157,7 @@ function createBackendEventContract(dateObj) {
       "id.orig_p": Math.floor(Math.random() * 65000),
       "id.resp_h": "198.51.100.4",
       "id.resp_p": 443,
-      "proto": "tcp",
+      "proto": proto,
       "conn_state": "S0",
       "orig_bytes": 0,
       "resp_bytes": 0
@@ -167,7 +168,7 @@ function createBackendEventContract(dateObj) {
 function generateHistoricalBackendEvents() {
   const events = [];
   const now = new Date();
-  for (let i = 0; i < 150; i++) {
+  for (let i = 0; i < 300; i++) {
     const pastDate = new Date(now.getTime() - Math.random() * 24 * 60 * 60 * 1000);
     events.push(createBackendEventContract(pastDate));
   }
@@ -365,14 +366,6 @@ export default function UniShieldDashboard() {
 // ============================================================================
 
 function ExecutiveView({ events, navigateTo }) {
-  const topSources = [
-    { ip: '10.24.18.42', count: 312, width: '100%' },
-    { ip: '10.24.21.17', count: 241, width: '77%' },
-    { ip: '10.24.19.08', count: 198, width: '63%' },
-    { ip: '10.24.14.63', count: 156, width: '50%' },
-    { ip: '10.24.22.91', count: 121, width: '38%' },
-  ];
-
   const totalAlerts = events.length;
   const criticalBreaches = events.filter(e => e.ai_assessment.severity === 'CRITICAL').length;
   
@@ -396,32 +389,41 @@ function ExecutiveView({ events, navigateTo }) {
 
   const activeThreatsCount = events.filter(e => e.ai_assessment.verdict === 'THREAT').length;
 
-  const pipelineStages = [
-    { label: 'Zeek Sensor', status: 'ONLINE', icon: <Terminal className="w-3.5 h-3.5 text-purple-400"/> },
-    { label: 'Kafka Ingest', status: 'ACTIVE', icon: <Database className="w-3.5 h-3.5 text-purple-400"/> },
-    { label: 'Feature Extr.', status: 'ONLINE', icon: <Cpu className="w-3.5 h-3.5 text-purple-400"/> },
-    { label: 'ML Inference', status: 'ONLINE', icon: <Activity className="w-3.5 h-3.5 text-purple-400"/> },
-    { label: 'Alert Engine', status: 'ONLINE', icon: <Radio className="w-3.5 h-3.5 text-purple-400"/> },
-  ];
+  const sourceCounts = events.reduce((acc, e) => {
+    if (e.ai_assessment.verdict === 'THREAT') {
+      acc[e.src_ip] = (acc[e.src_ip] || 0) + 1;
+    }
+    return acc;
+  }, {});
+  
+  const topSources = Object.entries(sourceCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([ip, count]) => ({ ip, count }));
+    
+  const maxSourceCount = topSources[0]?.count || 1;
 
+  // Custom tooltips
   const CustomOverviewTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-[#030712] border border-indigo-900/50 p-2 shadow-xl rounded-sm z-[100]">
-          <p className="text-[10px] font-mono text-slate-200 m-0 flex items-center">
+        <div className="bg-[#030712] border border-indigo-900/50 p-2 shadow-xl rounded-sm font-mono z-[1000] relative">
+          <p className="text-[10px] text-slate-200 m-0 flex items-center mb-1">
             <span style={{ backgroundColor: payload[0].payload.color }} className="w-2 h-2 mr-2 inline-block rounded-sm"></span>
-            <span>{payload[0].name}</span>
-            <span className="text-slate-400 ml-3 font-bold">{payload[0].value}%</span>
+            <span className="uppercase tracking-widest text-slate-400">THREAT CLASS</span>
           </p>
+          <p className="text-[11px] font-bold text-slate-100">{payload[0].name}</p>
+          <p className="text-[10px] text-purple-400 font-bold mt-1">{payload[0].value}% DISTRIBUTION</p>
         </div>
       );
     }
     return null;
   };
 
+  // EXACT 24-HOUR HONEYCOMB LOGIC (Rolling 24 Hours)
   const honeycombBuckets = useMemo(() => {
     const buckets = Array.from({length: 24}, (_, i) => ({
-      hour: pad(i),
+      hourLabel: pad(i),
       events: [],
       maxSeverity: 'NONE'
     }));
@@ -453,27 +455,32 @@ function ExecutiveView({ events, navigateTo }) {
 
   const HoneycombTooltip = () => {
     if (!hoveredHex) return null;
-    const bucket = honeycombBuckets.find(b => b.hour === hoveredHex);
+    const bucket = honeycombBuckets.find(b => b.hourLabel === hoveredHex);
     if (!bucket) return null;
     
     const critCount = bucket.events.filter(e => e.ai_assessment.severity === 'CRITICAL').length;
     const highCount = bucket.events.filter(e => e.ai_assessment.severity === 'HIGH').length;
+    const threatCount = bucket.events.filter(e => e.ai_assessment.verdict === 'THREAT').length;
 
     const types = bucket.events.reduce((acc, e) => { acc[e.ai_assessment.threat_type] = (acc[e.ai_assessment.threat_type] || 0) + 1; return acc; }, {});
     const topType = Object.entries(types).sort((a,b) => b[1]-a[1])[0]?.[0] || 'N/A';
     const peakConf = bucket.events.length > 0 ? Math.max(...bucket.events.map(e => e.ai_assessment.confidence)) : 0;
 
     return (
-      <div className="absolute top-[-110px] left-1/2 transform -translate-x-1/2 bg-[#030712] border border-indigo-900/50 p-3 shadow-xl rounded-sm z-[100] font-mono w-48 pointer-events-none">
-        <p className="text-[10px] text-slate-400 uppercase tracking-widest border-b border-slate-800 pb-1 mb-2">Hour: {bucket.hour}:00 – {pad((parseInt(bucket.hour)+1)%24)}:00</p>
+      <div className="absolute top-[-140px] left-1/2 transform -translate-x-1/2 bg-[#030712] border border-indigo-900/50 p-3 shadow-xl rounded-sm z-[100] font-mono w-56 pointer-events-none">
+        <p className="text-[10px] text-slate-400 uppercase tracking-widest border-b border-slate-800 pb-1 mb-2 flex justify-between">
+          <span>{formatDateTime(new Date()).split('    ')[0]}</span>
+          <span>{bucket.hourLabel}:00 – {pad((parseInt(bucket.hourLabel)+1)%24)}:00</span>
+        </p>
         <p className="text-xl text-slate-200 font-light mb-2">{bucket.events.length} EVENTS</p>
-        <div className="grid grid-cols-2 gap-1 text-[9px] mb-2">
-          <span className="text-orange-400">{highCount} HIGH</span>
-          <span className="text-rose-500">{critCount} CRITICAL</span>
+        <div className="grid grid-cols-2 gap-1 text-[9px] mb-3 bg-[#060913] p-1.5 rounded">
+          <span className="text-rose-500 font-bold">{critCount} CRITICAL</span>
+          <span className="text-orange-400 font-bold">{highCount} HIGH</span>
+          <span className="text-purple-400 col-span-2">{threatCount} TOTAL THREATS</span>
         </div>
         <div className="text-[9px]">
           <span className="block text-slate-500 uppercase tracking-widest">TOP DETECTION</span>
-          <span className="block text-slate-300 truncate mb-1">{topType}</span>
+          <span className="block text-slate-300 truncate mb-2">{topType}</span>
           <span className="block text-slate-500 uppercase tracking-widest">PEAK AI CONFIDENCE</span>
           <span className="block text-purple-400 font-bold">{(peakConf * 100).toFixed(1)}%</span>
         </div>
@@ -491,40 +498,46 @@ function ExecutiveView({ events, navigateTo }) {
       </div>
 
       <div className="flex flex-col lg:flex-row gap-4 md:gap-5">
+        {/* PAST 24 HOURS HONEYCOMB */}
         <div className="flex-1 lg:flex-[0.68] bg-[#0a0f1c] border border-indigo-900/30 flex flex-col relative overflow-visible group min-h-[340px]">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
           <div className="px-4 py-3 border-b border-indigo-900/30 flex justify-between items-center bg-[#060913]/50">
             <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase">PAST 24 HOURS — THREAT ACTIVITY</h3>
             <span className="text-[9px] font-mono border border-emerald-900/50 text-emerald-500 bg-emerald-950/20 px-1.5 py-0.5 rounded">[ ROLLING 24H ]</span>
           </div>
+          
           <div className="flex-1 flex items-center justify-center p-4 relative overflow-visible">
-            <div className="relative flex flex-col items-center justify-center">
+            <div className="relative flex flex-col items-center justify-center mt-6">
               <HoneycombTooltip />
-              <div className="flex gap-1 z-10">
+              
+              {/* ROW 1: 00 to 11 */}
+              <div className="flex z-10" style={{ gap: '2px' }}>
                 {honeycombBuckets.slice(0, 12).map(b => (
                   <div 
-                    key={b.hour}
-                    onMouseEnter={() => setHoveredHex(b.hour)}
+                    key={b.hourLabel}
+                    onMouseEnter={() => setHoveredHex(b.hourLabel)}
                     onMouseLeave={() => setHoveredHex(null)}
                     onClick={() => navigateTo('stream')}
-                    className={`w-[44px] h-[50px] flex items-center justify-center cursor-pointer transition-all duration-300 hover:scale-110 hover:z-20 ${getSeverityBg(b.maxSeverity)} border-none shadow-[0_0_10px_rgba(0,0,0,0.5)]`}
-                    style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}
+                    className={`w-[48px] h-[54px] flex items-center justify-center cursor-pointer transition-all duration-200 hover:scale-110 hover:z-20 ${getSeverityBg(b.maxSeverity)} shadow-[0_0_15px_rgba(0,0,0,0.6)]`}
+                    style={{ clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)' }}
                   >
-                    <span className="text-[10px] font-mono font-bold opacity-80">{b.hour}</span>
+                    <span className="text-[10px] font-mono font-bold opacity-90">{b.hourLabel}</span>
                   </div>
                 ))}
               </div>
-              <div className="flex gap-1 z-0" style={{ marginTop: '-13px', marginLeft: '48px' }}>
+              
+              {/* ROW 2: 12 to 23 (Interlocking offset) */}
+              <div className="flex z-0" style={{ gap: '2px', marginTop: '-14px', marginLeft: '50px' }}>
                 {honeycombBuckets.slice(12, 24).map(b => (
                   <div 
-                    key={b.hour}
-                    onMouseEnter={() => setHoveredHex(b.hour)}
+                    key={b.hourLabel}
+                    onMouseEnter={() => setHoveredHex(b.hourLabel)}
                     onMouseLeave={() => setHoveredHex(null)}
                     onClick={() => navigateTo('stream')}
-                    className={`w-[44px] h-[50px] flex items-center justify-center cursor-pointer transition-all duration-300 hover:scale-110 hover:z-20 ${getSeverityBg(b.maxSeverity)} border-none shadow-[0_0_10px_rgba(0,0,0,0.5)]`}
-                    style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}
+                    className={`w-[48px] h-[54px] flex items-center justify-center cursor-pointer transition-all duration-200 hover:scale-110 hover:z-20 ${getSeverityBg(b.maxSeverity)} shadow-[0_0_15px_rgba(0,0,0,0.6)]`}
+                    style={{ clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)' }}
                   >
-                    <span className="text-[10px] font-mono font-bold opacity-80">{b.hour}</span>
+                    <span className="text-[10px] font-mono font-bold opacity-90">{b.hourLabel}</span>
                   </div>
                 ))}
               </div>
@@ -532,20 +545,26 @@ function ExecutiveView({ events, navigateTo }) {
           </div>
         </div>
 
+        {/* THREAT CLASSES */}
         <div className="flex-1 lg:flex-[0.32] bg-[#0a0f1c] border border-indigo-900/30 flex flex-col relative overflow-hidden min-h-[340px]">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
           <div className="px-4 py-3 border-b border-indigo-900/30 bg-[#060913]/50">
             <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase">THREAT CLASSES</h3>
           </div>
-          <div className="flex-1 flex flex-col p-4">
-            <div className="flex-1 relative min-h-[140px]">
+          <div className="flex-1 flex flex-col p-4 relative">
+            <div className="flex-1 relative min-h-[140px] z-10">
               {dynamicThreatDistribution.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie data={dynamicThreatDistribution} innerRadius="68%" outerRadius="90%" paddingAngle={2} dataKey="value" stroke="none" isAnimationActive={false}>
                       {dynamicThreatDistribution.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                     </Pie>
-                    <RechartsTooltip content={<CustomOverviewTooltip />} cursor={{fill: 'transparent'}} />
+                    <RechartsTooltip 
+                      content={<CustomOverviewTooltip />} 
+                      cursor={{fill: 'transparent'}}
+                      wrapperStyle={{ zIndex: 1000, outline: 'none' }}
+                      allowEscapeViewBox={{ x: false, y: false }}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
@@ -556,7 +575,7 @@ function ExecutiveView({ events, navigateTo }) {
                 <span className="text-[9px] font-mono text-slate-500 uppercase tracking-widest mt-0.5">Active Threats</span>
               </div>
             </div>
-            <div className="mt-4 pt-4 border-t border-indigo-900/30">
+            <div className="mt-4 pt-4 border-t border-indigo-900/30 z-0">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-2">
                 {dynamicThreatDistribution.map((dist, i) => (
                   <div key={i} className="flex items-center justify-between text-[10px] font-mono pr-2">
@@ -574,7 +593,9 @@ function ExecutiveView({ events, navigateTo }) {
       </div>
 
       <div className="flex flex-col lg:flex-row gap-4 md:gap-5">
-        <div className="flex-1 lg:flex-[0.48] bg-[#0a0f1c] border border-indigo-900/30 flex flex-col relative overflow-hidden min-h-[300px]">
+        
+        {/* LIVE THREAT FEED */}
+        <div className="flex-1 lg:flex-[0.55] bg-[#0a0f1c] border border-indigo-900/30 flex flex-col relative overflow-hidden min-h-[300px]">
           <div className="px-4 py-3 border-b border-indigo-900/30 bg-[#060913]/50 flex justify-between items-center shrink-0">
             <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase">LIVE THREAT FEED</h3>
           </div>
@@ -613,47 +634,34 @@ function ExecutiveView({ events, navigateTo }) {
           </div>
         </div>
 
-        <div className="flex-1 lg:flex-[0.26] bg-[#0a0f1c] border border-indigo-900/30 flex flex-col relative overflow-hidden min-h-[300px]">
-          <div className="px-4 py-3 border-b border-indigo-900/30 bg-[#060913]/50 shrink-0">
-            <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase">DETECTION PIPELINE</h3>
-          </div>
-          <div className="flex-1 flex flex-col justify-between p-5 relative font-mono">
-            <div className="absolute left-[33px] top-8 bottom-8 w-[1px] bg-indigo-900/50"></div>
-            {pipelineStages.map((stage, i) => (
-              <div key={i} className="flex items-center relative z-10 mb-3 last:mb-0">
-                <div className="w-7 h-7 rounded border border-indigo-900/50 bg-[#060913] flex items-center justify-center mr-3 shadow-[0_0_10px_rgba(79,70,229,0.1)] shrink-0">
-                  {stage.icon}
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[11px] text-slate-300 leading-tight">{stage.label}</span>
-                  <div className="flex items-center mt-0.5">
-                    <span className="text-[9px] text-emerald-400 flex items-center tracking-widest">
-                      <span className="w-1 h-1 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>
-                      {stage.status}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex-1 lg:flex-[0.26] bg-[#0a0f1c] border border-indigo-900/30 flex flex-col relative overflow-hidden min-h-[300px]">
+        {/* TOP THREAT SOURCES (Redesigned) */}
+        <div className="flex-1 lg:flex-[0.45] bg-[#0a0f1c] border border-indigo-900/30 flex flex-col relative overflow-hidden min-h-[300px]">
           <div className="px-4 py-3 border-b border-indigo-900/30 bg-[#060913]/50 shrink-0">
             <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase">TOP THREAT SOURCES</h3>
           </div>
-          <div className="flex-1 p-4 flex flex-col justify-center space-y-4 font-mono">
-            {topSources.map((source, i) => (
-              <div key={i} className="flex flex-col space-y-1.5">
-                <div className="flex justify-between text-[10px]">
-                  <span className="text-slate-300">{source.ip}</span>
-                  <span className="text-purple-400 font-bold">{source.count}</span>
+          <div className="flex-1 p-5 flex flex-col justify-center space-y-5 font-mono">
+            {topSources.length > 0 ? topSources.map((source, i) => {
+              const percentage = (source.count / maxSourceCount) * 100;
+              return (
+                <div key={source.ip} className="flex flex-col space-y-1.5">
+                  <div className="flex justify-between items-center text-[10px]">
+                    <div className="flex items-center space-x-3">
+                      <span className="text-slate-500 font-bold">{pad(i+1)}</span>
+                      <span className="text-slate-200">{source.ip}</span>
+                    </div>
+                    <span className="text-purple-400 font-bold">{source.count}</span>
+                  </div>
+                  <div className="w-full bg-[#030712] border border-slate-800/60 h-2 rounded-sm overflow-hidden flex">
+                    <div 
+                      className={`h-full rounded-sm transition-all duration-500 ${i === 0 ? 'bg-rose-500' : i === 1 ? 'bg-orange-500' : 'bg-purple-600/80'}`} 
+                      style={{ width: `${percentage}%` }}
+                    ></div>
+                  </div>
                 </div>
-                <div className="w-full bg-[#030712] border border-slate-800/60 h-1.5 rounded-sm overflow-hidden">
-                  <div className="h-full bg-purple-600/80 rounded-sm" style={{ width: source.width }}></div>
-                </div>
-              </div>
-            ))}
+              );
+            }) : (
+              <div className="text-[10px] text-slate-500 text-center uppercase tracking-widest">No threat data available</div>
+            )}
           </div>
         </div>
       </div>
@@ -779,54 +787,22 @@ function LiveStreamView({ events, navigateTo, globalSelectedEventId, setGlobalSe
               </div>
               
               <div className="mt-4 flex flex-col space-y-2">
+                {selectedEvent.ai_assessment.response_status?.state === 'NEUTRALIZED' && (
+                  <div className="bg-emerald-900/20 border border-emerald-500/30 text-emerald-400 text-center py-2 rounded text-[10px] font-bold uppercase tracking-widest mb-2 flex items-center justify-center">
+                     <CheckCircle className="w-3 h-3 mr-2" /> AI HAS NEUTRALIZED THE THREAT
+                  </div>
+                )}
                 <button 
                   onClick={() => navigateTo('analytics', selectedEvent.id)}
                   className="w-full bg-purple-900/30 hover:bg-purple-900/50 border border-purple-500/50 text-purple-300 text-[10px] font-mono tracking-widest uppercase py-2 rounded transition-all active:scale-[0.98] text-center shadow-[0_0_10px_rgba(168,85,247,0.1)] hover:shadow-[0_0_15px_rgba(168,85,247,0.2)]"
                 >
-                  [ INVESTIGATE IN THREAT ANALYTICS ]
+                  [ VIEW IN THREAT ANALYTICS ]
                 </button>
               </div>
             </div>
           ) : (
             <div className="flex-1 flex items-center justify-center text-[10px] font-mono text-slate-500">No event selected</div>
           )}
-        </div>
-      </div>
-
-      <div className="bg-[#0a0f1c] border border-indigo-900/30 shrink-0">
-        <div className="px-4 py-3 border-b border-indigo-900/30 bg-[#060913]/50 flex items-center justify-between">
-          <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase">FULL EVENT LOG</h3>
-        </div>
-        <div className="overflow-x-auto max-h-[300px] md:max-h-[220px]">
-          <table className="w-full text-left whitespace-nowrap">
-            <thead className="text-[9px] text-slate-500 font-mono uppercase bg-[#04060d] sticky top-0 z-10 border-b border-indigo-900/30">
-              <tr>
-                <th className="px-4 py-2.5 font-normal">TIMESTAMP</th>
-                <th className="px-4 py-2.5 font-normal hidden sm:table-cell">INCIDENT ID</th>
-                <th className="px-4 py-2.5 font-normal">SEVERITY</th>
-                <th className="px-4 py-2.5 font-normal">THREAT CLASS</th>
-                <th className="px-4 py-2.5 font-normal hidden md:table-cell">SOURCE IP</th>
-                <th className="px-4 py-2.5 font-normal text-right">CONFIDENCE</th>
-              </tr>
-            </thead>
-            <tbody className="font-mono text-[10px] md:text-[11px]">
-              {events.slice(0, 15).map((evt, i) => (
-                <tr key={i} className="border-b border-indigo-900/20 hover:bg-indigo-950/20 transition-colors">
-                  <td className="px-4 py-2 text-slate-500">{evt.timeLabel}</td>
-                  <td className="px-4 py-2 text-slate-600 hidden sm:table-cell">{evt.id}</td>
-                  <td className="px-4 py-2">
-                    <span className="flex items-center text-slate-300">
-                      <span className={`w-1.5 h-1.5 rounded-full mr-2 ${getSeverityBg(evt.ai_assessment.severity)}`}></span>
-                      {evt.ai_assessment.severity}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2 text-slate-300">{evt.ai_assessment.threat_type}</td>
-                  <td className="px-4 py-2 text-rose-400 hidden md:table-cell">{evt.src_ip}</td>
-                  <td className="px-4 py-2 text-right text-purple-400 font-bold">{(evt.ai_assessment.confidence * 100).toFixed(1)}%</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
       </div>
     </div>
@@ -964,70 +940,49 @@ function AnalyticsView({ events, globalSelectedEventId, navigateTo }) {
           </div>
         </div>
       </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5 flex-1 min-h-[160px] mt-4">
-        <div className="bg-[#0a0f1c] border border-indigo-900/30 flex flex-col p-4">
-          <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase border-b border-indigo-900/30 pb-3 mb-4">
-            {analyzedEvent ? 'CORRELATED ACTIVITY' : 'RECENT ACTIVITY'}
-          </h3>
-          <div className="flex-1 flex flex-col justify-center space-y-3">
-            {analyzedEvent ? (
-              correlatedEvents.length > 0 ? (
-                correlatedEvents.map((impact, i) => (
-                  <div key={i} className="flex justify-between items-center text-[10px] font-mono border-b border-slate-800/50 pb-2 last:border-0 last:pb-0 cursor-pointer hover:bg-slate-800/30 p-1" onClick={() => navigateTo('analytics', impact.id)}>
-                    <span className="text-slate-300 uppercase tracking-widest w-32 truncate">{impact.ai_assessment.threat_type}</span>
-                    <span className="text-slate-400">{impact.timeLabel}</span>
-                    <span className={`font-bold ${getSeverityColor(impact.ai_assessment.severity)}`}>{impact.ai_assessment.severity}</span>
-                  </div>
-                ))
-              ) : (
-                <div className="text-[10px] font-mono text-slate-500 text-center uppercase tracking-widest">No recent correlated activity from this IP</div>
-              )
-            ) : (
-              <div className="text-[10px] font-mono text-slate-500 text-center uppercase tracking-widest">Select an event to view correlations</div>
-            )}
-          </div>
-        </div>
-
-        <div className="bg-[#0a0f1c] border border-indigo-900/30 flex flex-col p-4">
-          <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase border-b border-indigo-900/30 pb-3 mb-4">
-            {analyzedEvent ? 'MULTI-MODEL CONSENSUS' : 'MODEL HEALTH'}
-          </h3>
-          <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-[10px] font-mono">
-            {analyzedEvent ? (
-              <>
-                {Object.entries(analyzedEvent.ai_assessment.model_consensus).map(([modelKey, data]) => (
-                  <div key={modelKey} className="flex items-center justify-between bg-[#060913]/50 px-2 py-1.5 border border-slate-800/80 rounded-sm">
-                    <span className="text-slate-400 uppercase tracking-widest truncate mr-2">{modelKey.replace('_', ' ')}</span>
-                    <span className={`flex items-center tracking-wider ${data.verdict === 'THREAT' ? 'text-rose-400 font-bold' : 'text-emerald-400'}`}>
-                      {data.verdict} — {(data.confidence * 100).toFixed(0)}%
-                    </span>
-                  </div>
-                ))}
-                <div className="flex items-center justify-between bg-purple-900/20 px-2 py-1.5 border border-purple-500/50 rounded-sm mt-1 sm:col-span-2">
-                  <span className="text-purple-300 font-bold uppercase tracking-widest truncate mr-2">FINAL AI VERDICT</span>
-                  <span className={`flex items-center font-bold tracking-widest ${analyzedEvent.ai_assessment.verdict === 'THREAT' ? 'text-rose-500' : 'text-emerald-500'}`}>
-                    {analyzedEvent.ai_assessment.verdict}
-                  </span>
-                </div>
-              </>
-            ) : (
-              <div className="col-span-2 text-[10px] font-mono text-slate-500 text-center uppercase tracking-widest">Models Online & Healthy</div>
-            )}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
 
 // ============================================================================
-// ZEEK LOGS VIEW
+// ZEEK LOGS VIEW (WITH FUNCTIONAL FILTERS & AI ASSESSMENT)
 // ============================================================================
 function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSelectedEventId }) {
-  const selectedEvent = events.find(e => e.id === globalSelectedEventId) || events[0];
-  const [copyStatus, setCopyStatus] = useState('idle');
   
+  // Filter States
+  const [filterSource, setFilterSource] = useState('ALL');
+  const [filterSeverity, setFilterSeverity] = useState('ALL');
+  const [filterProtocol, setFilterProtocol] = useState('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  const [copyStatus, setCopyStatus] = useState('idle');
+
+  // Filter Logic
+  const filteredEvents = useMemo(() => {
+    return events.filter(e => {
+      if (filterSource !== 'ALL' && e.log_source !== filterSource) return false;
+      if (filterSeverity !== 'ALL' && e.ai_assessment.severity !== filterSeverity) return false;
+      if (filterProtocol !== 'ALL' && e.raw_event?.proto?.toUpperCase() !== filterProtocol.toUpperCase()) return false;
+      if (searchQuery) {
+        const sq = searchQuery.toLowerCase();
+        return (
+          e.src_ip.includes(sq) || 
+          e.dst_ip?.includes(sq) || 
+          e.id.toLowerCase().includes(sq) || 
+          e.ai_assessment.threat_type.toLowerCase().includes(sq) ||
+          e.log_source.toLowerCase().includes(sq)
+        );
+      }
+      return true;
+    });
+  }, [events, filterSource, filterSeverity, filterProtocol, searchQuery]);
+
+  // Derived Options for Selects
+  const availableSources = useMemo(() => Array.from(new Set(events.map(e => e.log_source))).sort(), [events]);
+  const availableProtocols = useMemo(() => Array.from(new Set(events.map(e => e.raw_event?.proto?.toUpperCase()).filter(Boolean))).sort(), [events]);
+
+  const selectedEvent = events.find(e => e.id === globalSelectedEventId) || filteredEvents[0] || events[0];
+
   const handleCopyEvent = async () => {
     if (!selectedEvent?.raw_event) return;
     try {
@@ -1060,22 +1015,59 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center space-x-2">
             <Filter className="w-3.5 h-3.5 text-indigo-400" />
-            <span className="text-slate-300 bg-[#030712] border border-slate-800 px-2 py-1 rounded cursor-pointer hover:border-slate-600">LOG SOURCE: ALL ▼</span>
+            <select 
+              value={filterSource} 
+              onChange={e => setFilterSource(e.target.value)}
+              className="bg-[#030712] border border-slate-800 text-slate-300 px-2 py-1 rounded cursor-pointer hover:border-slate-600 outline-none uppercase tracking-widest appearance-none"
+            >
+              <option value="ALL">LOG SOURCE: ALL ▼</option>
+              {availableSources.map(src => <option key={src} value={src}>{src}</option>)}
+            </select>
           </div>
-          <span className="text-slate-300 bg-[#030712] border border-slate-800 px-2 py-1 rounded cursor-pointer hover:border-slate-600">SEVERITY: ALL ▼</span>
-          <span className="text-slate-300 bg-[#030712] border border-slate-800 px-2 py-1 rounded cursor-pointer hover:border-slate-600">PROTOCOL: ALL ▼</span>
+          
+          <select 
+            value={filterSeverity} 
+            onChange={e => setFilterSeverity(e.target.value)}
+            className="bg-[#030712] border border-slate-800 text-slate-300 px-2 py-1 rounded cursor-pointer hover:border-slate-600 outline-none uppercase tracking-widest appearance-none"
+          >
+            <option value="ALL">SEVERITY: ALL ▼</option>
+            <option value="CRITICAL">CRITICAL</option>
+            <option value="HIGH">HIGH</option>
+            <option value="MEDIUM">MEDIUM</option>
+            <option value="LOW">LOW</option>
+          </select>
+
+          <select 
+            value={filterProtocol} 
+            onChange={e => setFilterProtocol(e.target.value)}
+            className="bg-[#030712] border border-slate-800 text-slate-300 px-2 py-1 rounded cursor-pointer hover:border-slate-600 outline-none uppercase tracking-widest appearance-none"
+          >
+            <option value="ALL">PROTOCOL: ALL ▼</option>
+            {availableProtocols.map(proto => <option key={proto} value={proto}>{proto}</option>)}
+          </select>
           
           <div className="flex items-center bg-[#030712] border border-slate-800 rounded px-2 py-1 min-w-[200px]">
             <Search className="w-3 h-3 mr-2 text-slate-500" />
-            <input type="text" placeholder="Search IP, domain, UID..." className="bg-transparent border-none outline-none text-slate-300 placeholder-slate-600 w-full" />
+            <input 
+              type="text" 
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search IP, UID, Threat..." 
+              className="bg-transparent border-none outline-none text-slate-300 placeholder-slate-600 w-full font-sans text-xs" 
+            />
           </div>
         </div>
+        
         <div className="flex items-center space-x-3">
+          {(filterSource !== 'ALL' || filterSeverity !== 'ALL' || filterProtocol !== 'ALL' || searchQuery) && (
+            <button 
+              onClick={() => { setFilterSource('ALL'); setFilterSeverity('ALL'); setFilterProtocol('ALL'); setSearchQuery(''); }}
+              className="text-rose-400 hover:text-rose-300 tracking-widest"
+            >
+              [ RESET ]
+            </button>
+          )}
           <span className="text-slate-300 bg-[#030712] border border-slate-800 px-2 py-1 rounded cursor-pointer hover:border-slate-600">Last 15 min ▼</span>
-          <div className="flex items-center text-emerald-400 border border-emerald-900/50 bg-emerald-950/20 px-2 py-1 rounded">
-            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-1.5 animate-pulse"></span>
-            LIVE
-          </div>
         </div>
       </div>
 
@@ -1083,12 +1075,13 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
         {/* LEFT PANEL: Zeek Event Stream */}
         <div className="flex-1 lg:flex-[0.60] bg-[#0a0f1c] border border-indigo-900/30 flex flex-col overflow-hidden relative">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
-          <div className="px-4 py-2.5 border-b border-indigo-900/30 bg-[#060913]/50">
+          <div className="px-4 py-2.5 border-b border-indigo-900/30 bg-[#060913]/50 flex justify-between items-center">
             <h3 className="text-[11px] font-bold tracking-widest text-slate-300 uppercase">LIVE ZEEK EVENT STREAM</h3>
+            <span className="text-[9px] text-slate-500">{filteredEvents.length} MATCHING EVENTS</span>
           </div>
           
           <div className="flex-1 overflow-y-auto bg-[#02040a] p-3 space-y-2.5 text-[11px] leading-relaxed">
-            {events.slice(0, 50).map((evt) => (
+            {filteredEvents.length > 0 ? filteredEvents.slice(0, 50).map((evt) => (
               <div 
                 key={evt.id}
                 onClick={() => setGlobalSelectedEventId(evt.id)}
@@ -1105,14 +1098,12 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
                   {evt.src_ip} {evt.dst_ip && <span className="text-slate-500">→ {evt.dst_ip}:{evt.ports}</span>}
                 </div>
                 <div className="text-slate-400 whitespace-pre-wrap">
-                  {evt.ai_assessment.threat_type} detected
+                  {evt.ai_assessment.threat_type} ({evt.raw_event?.proto})
                 </div>
               </div>
-            ))}
-            <div className="p-2.5 flex items-center text-slate-500 text-[10px] mt-4 opacity-70">
-              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-2 animate-pulse"></span>
-              Waiting for next event...
-            </div>
+            )) : (
+              <div className="flex items-center justify-center h-full text-slate-500 tracking-widest uppercase text-[10px]">No events match filters</div>
+            )}
           </div>
         </div>
 
@@ -1146,17 +1137,14 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
                     {copyStatus === 'success' ? 'COPIED ✓' : copyStatus === 'error' ? 'COPY FAILED' : <><Copy className="w-3 h-3 mr-2" /> COPY EVENT</>}
                   </button>
                   <button 
-                    onClick={() => navigateTo('analytics', selectedEvent.id)}
+                    onClick={() => navigateTo('stream', selectedEvent.id)}
                     className="flex-1 flex items-center justify-center bg-purple-900/30 border border-purple-500/50 hover:bg-purple-900/50 text-purple-300 py-2 rounded transition-colors uppercase tracking-widest"
                   >
                     <ActivitySquare className="w-3 h-3 mr-2" /> THREAT STREAM
                   </button>
                 </div>
 
-                {/* ========================================================= */}
-                {/* NEW AUTOMATED AI THREAT ASSESSMENT PANEL                  */}
-                {/* NO ANALYST FEEDBACK - STRICTLY BACKEND DRIVEN             */}
-                {/* ========================================================= */}
+                {/* AUTOMATED AI THREAT ASSESSMENT PANEL */}
                 <div className="flex-1 flex flex-col space-y-3">
                   <h4 className="text-[10px] font-bold text-purple-400 uppercase tracking-widest flex items-center">
                     <Cpu className="w-3 h-3 mr-1.5" /> AI THREAT ASSESSMENT
@@ -1178,26 +1166,35 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
                       </ul>
                   </div>
 
-                  <div className="bg-[#030712] p-2 border border-indigo-900/30 rounded text-[9px]">
-                      <span className="text-slate-500 block mb-1 uppercase tracking-widest">Model Consensus</span>
-                      <div className="space-y-1 mb-2">
-                        {Object.entries(selectedEvent.ai_assessment.model_consensus).map(([modelKey, data]) => (
-                          <div key={modelKey} className="flex justify-between items-center">
-                            <span className="text-slate-400 capitalize">{modelKey.replace('_', ' ')}</span>
-                            <span className="text-slate-300">
-                              <span className={data.verdict === 'THREAT' ? 'text-rose-400' : 'text-emerald-400'}>{data.verdict}</span>
-                              <span className="ml-2 opacity-70">{(data.confidence * 100).toFixed(0)}%</span>
-                            </span>
+                  {Object.keys(selectedEvent.ai_assessment.model_consensus).length > 0 && (
+                    <div className="bg-[#030712] p-2 border border-indigo-900/30 rounded text-[9px]">
+                        <span className="text-slate-500 block mb-1 uppercase tracking-widest">Model Consensus</span>
+                        <div className="space-y-1 mb-2">
+                          {Object.entries(selectedEvent.ai_assessment.model_consensus).map(([modelKey, data]) => (
+                            <div key={modelKey} className="flex justify-between items-center">
+                              <span className="text-slate-400 capitalize">{modelKey.replace('_', ' ')}</span>
+                              <span className="text-slate-300">
+                                <span className={data.verdict === 'THREAT' ? 'text-rose-400' : 'text-emerald-400'}>{data.verdict}</span>
+                                <span className="ml-2 opacity-70">{(data.confidence * 100).toFixed(0)}%</span>
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="border-t border-indigo-900/30 pt-2 flex flex-col justify-center">
+                          <div className="flex justify-between items-center font-bold">
+                            <span className="text-purple-400 uppercase">Final AI Decision</span>
+                            <span className={selectedEvent.ai_assessment.verdict === 'THREAT' ? 'text-rose-500' : 'text-emerald-500'}>{selectedEvent.ai_assessment.verdict} — {(selectedEvent.ai_assessment.confidence * 100).toFixed(1)}%</span>
                           </div>
-                        ))}
-                      </div>
-                      <div className="border-t border-indigo-900/30 pt-1.5 flex justify-between items-center font-bold">
-                        <span className="text-purple-400 uppercase">Final AI Decision</span>
-                        <span className={selectedEvent.ai_assessment.verdict === 'THREAT' ? 'text-rose-500' : 'text-emerald-500'}>{selectedEvent.ai_assessment.verdict} — {(selectedEvent.ai_assessment.confidence * 100).toFixed(1)}%</span>
-                      </div>
-                  </div>
+                          {selectedEvent.ai_assessment.response_status?.state === 'NEUTRALIZED' && (
+                            <div className="text-emerald-400 font-bold mt-2 pt-2 border-t border-indigo-900/20 text-center tracking-widest uppercase flex items-center justify-center">
+                               <CheckCircle className="w-3 h-3 mr-1.5" /> AI HAS NEUTRALIZED THE THREAT
+                            </div>
+                          )}
+                        </div>
+                    </div>
+                  )}
 
-                  {/* AI Response Status - Driven completely by backend state */}
+                  {/* AI Response Status - Full Pipeline View */}
                   {selectedEvent.ai_assessment.response_status && (
                     <div className="bg-purple-900/10 p-2 border border-purple-500/30 rounded text-[9px]">
                         <span className="text-purple-400 block mb-2 uppercase tracking-widest font-bold">AI RESPONSE STATUS</span>
@@ -1236,8 +1233,15 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
                     </div>
                   )}
 
-                  {/* Raw Event Debug output preserved at bottom */}
-                  <div className="mt-4">
+                  {/* Navigation utility */}
+                  <button 
+                    onClick={() => navigateTo('analytics', selectedEvent.id)}
+                    className="w-full mt-2 bg-purple-900/30 hover:bg-purple-900/50 border border-purple-500/50 text-purple-300 text-[10px] font-mono tracking-widest uppercase py-2 rounded transition-all active:scale-[0.98] text-center shadow-[0_0_10px_rgba(168,85,247,0.1)] hover:shadow-[0_0_15px_rgba(168,85,247,0.2)]"
+                  >
+                    [ VIEW IN THREAT ANALYTICS ]
+                  </button>
+
+                  <div className="mt-4 pt-2 border-t border-indigo-900/30">
                     <span className="text-slate-500 block mb-2 uppercase tracking-widest">RAW EVENT</span>
                     <pre className="bg-[#02040a] border border-slate-800 p-3 rounded text-[10px] text-indigo-300/80 overflow-x-auto whitespace-pre-wrap word-break-all">
                       {JSON.stringify(selectedEvent.raw_event, null, 2)}
@@ -1246,25 +1250,12 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
                 </div>
               </>
             ) : (
-              <div className="flex items-center justify-center h-full text-slate-500 uppercase tracking-widest">Waiting for live data...</div>
+              <div className="flex items-center justify-center h-full text-[10px] font-mono text-slate-500 uppercase tracking-widest">Waiting for live data...</div>
             )}
             
           </div>
         </div>
       </div>
-
-      <div className="bg-[#0a0f1c] border border-indigo-900/30 p-3 shrink-0 flex flex-col md:flex-row md:items-center justify-between text-[10px] uppercase tracking-widest gap-3 md:gap-0">
-        <span className="text-slate-500 font-bold hidden lg:block">LOG SOURCES</span>
-        <div className="flex flex-wrap items-center gap-4 lg:gap-8 flex-1 lg:justify-center">
-          <div className="flex items-center"><span className="text-slate-400 w-20">conn.log</span> <span className="text-slate-200 font-bold">12.8K</span></div>
-          <div className="flex items-center"><span className="text-slate-400 w-20">dns.log</span> <span className="text-slate-200 font-bold">4.9K</span></div>
-          <div className="flex items-center"><span className="text-slate-400 w-20">ssl.log</span> <span className="text-slate-200 font-bold">1.8K</span></div>
-          <div className="flex items-center"><span className="text-slate-400 w-20">http.log</span> <span className="text-slate-200 font-bold">0.9K</span></div>
-          <div className="flex items-center"><span className="text-amber-500 w-20">notice.log</span> <span className="text-amber-400 font-bold">6</span></div>
-          <div className="flex items-center"><span className="text-rose-500 w-20">weird.log</span> <span className="text-rose-400 font-bold">4</span></div>
-        </div>
-      </div>
-
     </div>
   );
 }
@@ -1353,64 +1344,6 @@ function TelemetryView() {
                   {node.name}
                 </div>
                 <span className="text-emerald-400 font-bold tracking-widest">{node.status}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-[#0a0f1c] border border-indigo-900/30 p-4 shrink-0 flex flex-col relative overflow-hidden hidden sm:flex">
-        <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
-        <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase border-b border-indigo-900/30 pb-3 mb-6">DATA PIPELINE</h3>
-        <div className="grid grid-cols-3 lg:flex lg:items-center lg:justify-between gap-y-6 px-2 lg:px-8 pb-4">
-          {pipelineFlow.map((stage, i) => (
-            <React.Fragment key={i}>
-              <div className="flex flex-col items-center space-y-2 md:space-y-3">
-                <span className="text-[9px] md:text-[10px] font-mono text-slate-400 uppercase tracking-widest">{stage.name}</span>
-                <span className="w-2 h-2 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.8)]"></span>
-                <span className={`text-[9px] md:text-[10px] font-mono font-bold ${stage.isEnd ? 'text-rose-400' : 'text-slate-300'}`}>{stage.rate}</span>
-              </div>
-              {i < pipelineFlow.length - 1 && (
-                <div className="hidden lg:flex flex-1 items-center justify-center -mt-6 opacity-50">
-                  <ArrowRight className="w-4 h-4 text-indigo-400" />
-                </div>
-              )}
-            </React.Fragment>
-          ))}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5 flex-1 min-h-[200px]">
-        <div className="bg-[#0a0f1c] border border-indigo-900/30 flex flex-col p-4 relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
-          <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase border-b border-indigo-900/30 pb-3 mb-2">TELEMETRY THROUGHPUT</h3>
-          <div className="flex-1 min-h-[120px] pt-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={throughputData} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorRate" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#9333ea" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#9333ea" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="2 4" stroke="#1e1b4b" vertical={false} />
-                <XAxis dataKey="time" stroke="#475569" fontSize={10} tickLine={false} axisLine={false} fontFamily="monospace" />
-                <YAxis domain={[17, 19]} stroke="#475569" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => `${val}K`} fontFamily="monospace" />
-                <RechartsTooltip contentStyle={{ backgroundColor: '#030712', border: '1px solid #312e81', fontSize: '11px', fontFamily: 'monospace', color: '#f8fafc' }} formatter={(value) => [`${value}K/s`, 'Rate']} />
-                <Area type="monotone" dataKey="rate" stroke="#9333ea" strokeWidth={1.5} fill="url(#colorRate)" activeDot={{ r: 4, fill: '#9333ea', stroke: '#0f172a' }} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="bg-[#0a0f1c] border border-indigo-900/30 flex flex-col p-4 relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
-          <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase border-b border-indigo-900/30 pb-3 mb-3">SYSTEM EVENTS</h3>
-          <div className="flex-1 overflow-y-auto pr-2 space-y-1 max-h-[150px] lg:max-h-full">
-            {systemEvents.map((evt, i) => (
-              <div key={i} className="flex font-mono text-[10px] md:text-[11px] py-1.5 border-b border-indigo-900/20 last:border-0">
-                <span className="text-slate-500 w-14 md:w-16 shrink-0">{evt.time}</span>
-                <span className="text-slate-300">{evt.event}</span>
               </div>
             ))}
           </div>
