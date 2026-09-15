@@ -5,8 +5,8 @@ import {
 } from 'recharts';
 import { 
   Shield, Activity, AlertTriangle, Crosshair, 
-  Database, Layout, Terminal, Server, Cpu, 
-  Target, Radio, ShieldAlert,
+  Layout, Terminal, Server, Cpu, 
+  Target, ShieldAlert,
   Search, ArrowRight, Menu, X, Filter, Copy, ActivitySquare, CheckCircle, Clock
 } from 'lucide-react';
 
