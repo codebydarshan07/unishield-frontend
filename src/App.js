@@ -6,7 +6,7 @@ import {
 import { 
   Shield, Activity, AlertTriangle, Crosshair, 
   Database, Layout, Terminal, Server, Cpu, 
-  Target, Radio, CheckCircle2, ShieldAlert,
+  Target, Radio, ShieldAlert,
   Search, ArrowRight, Menu, X, Filter, Copy, ActivitySquare, CheckCircle, Clock
 } from 'lucide-react';
 
@@ -838,6 +838,7 @@ function LiveStreamView({ events, navigateTo, globalSelectedEventId, setGlobalSe
 // ============================================================================
 function AnalyticsView({ events, globalSelectedEventId, navigateTo }) {
   const analyzeRef = useRef(null);
+  
   const analyzedEvent = globalSelectedEventId ? events.find(e => e.id === globalSelectedEventId) : null;
 
   useEffect(() => {
@@ -1079,6 +1080,7 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
       </div>
 
       <div className="flex flex-col lg:flex-row gap-4 shrink-0 min-h-[450px]">
+        {/* LEFT PANEL: Zeek Event Stream */}
         <div className="flex-1 lg:flex-[0.60] bg-[#0a0f1c] border border-indigo-900/30 flex flex-col overflow-hidden relative">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
           <div className="px-4 py-2.5 border-b border-indigo-900/30 bg-[#060913]/50">
@@ -1107,9 +1109,14 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
                 </div>
               </div>
             ))}
+            <div className="p-2.5 flex items-center text-slate-500 text-[10px] mt-4 opacity-70">
+              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-2 animate-pulse"></span>
+              Waiting for next event...
+            </div>
           </div>
         </div>
 
+        {/* RIGHT PANEL: Event Inspector & AI Assessment */}
         <div className="flex-1 lg:flex-[0.40] bg-[#0a0f1c] border border-indigo-900/30 flex flex-col overflow-hidden relative">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
           <div className="px-4 py-2.5 border-b border-indigo-900/30 bg-[#060913]/50">
@@ -1119,6 +1126,7 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
           <div className="flex-1 overflow-y-auto p-4 flex flex-col text-[10px]">
             {selectedEvent ? (
               <>
+                {/* Event Metadata */}
                 <div className="grid grid-cols-2 gap-y-3 gap-x-2 mb-4">
                   <div><span className="text-slate-500 block mb-0.5">EVENT TYPE</span> <span className="text-slate-300">{selectedEvent.ai_assessment.threat_type}</span></div>
                   <div><span className="text-slate-500 block mb-0.5">LOG SOURCE</span> <span className="text-slate-300">{selectedEvent.log_source}</span></div>
@@ -1128,6 +1136,7 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
                   <div><span className="text-slate-500 block mb-0.5">DESTINATION</span> <span className="text-slate-300">{selectedEvent.dst_ip}:{selectedEvent.ports}</span></div>
                 </div>
 
+                {/* Event Action Utilities */}
                 <div className="flex space-x-2 mb-4 pb-4 border-b border-indigo-900/30">
                   <button 
                     onClick={handleCopyEvent}
@@ -1144,6 +1153,10 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
                   </button>
                 </div>
 
+                {/* ========================================================= */}
+                {/* NEW AUTOMATED AI THREAT ASSESSMENT PANEL                  */}
+                {/* NO ANALYST FEEDBACK - STRICTLY BACKEND DRIVEN             */}
+                {/* ========================================================= */}
                 <div className="flex-1 flex flex-col space-y-3">
                   <h4 className="text-[10px] font-bold text-purple-400 uppercase tracking-widest flex items-center">
                     <Cpu className="w-3 h-3 mr-1.5" /> AI THREAT ASSESSMENT
@@ -1184,6 +1197,7 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
                       </div>
                   </div>
 
+                  {/* AI Response Status - Driven completely by backend state */}
                   {selectedEvent.ai_assessment.response_status && (
                     <div className="bg-purple-900/10 p-2 border border-purple-500/30 rounded text-[9px]">
                         <span className="text-purple-400 block mb-2 uppercase tracking-widest font-bold">AI RESPONSE STATUS</span>
@@ -1222,6 +1236,7 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
                     </div>
                   )}
 
+                  {/* Raw Event Debug output preserved at bottom */}
                   <div className="mt-4">
                     <span className="text-slate-500 block mb-2 uppercase tracking-widest">RAW EVENT</span>
                     <pre className="bg-[#02040a] border border-slate-800 p-3 rounded text-[10px] text-indigo-300/80 overflow-x-auto whitespace-pre-wrap word-break-all">
@@ -1231,11 +1246,25 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
                 </div>
               </>
             ) : (
-              <div className="flex items-center justify-center h-full text-[10px] font-mono text-slate-500 uppercase tracking-widest">Waiting for live data...</div>
+              <div className="flex items-center justify-center h-full text-slate-500 uppercase tracking-widest">Waiting for live data...</div>
             )}
+            
           </div>
         </div>
       </div>
+
+      <div className="bg-[#0a0f1c] border border-indigo-900/30 p-3 shrink-0 flex flex-col md:flex-row md:items-center justify-between text-[10px] uppercase tracking-widest gap-3 md:gap-0">
+        <span className="text-slate-500 font-bold hidden lg:block">LOG SOURCES</span>
+        <div className="flex flex-wrap items-center gap-4 lg:gap-8 flex-1 lg:justify-center">
+          <div className="flex items-center"><span className="text-slate-400 w-20">conn.log</span> <span className="text-slate-200 font-bold">12.8K</span></div>
+          <div className="flex items-center"><span className="text-slate-400 w-20">dns.log</span> <span className="text-slate-200 font-bold">4.9K</span></div>
+          <div className="flex items-center"><span className="text-slate-400 w-20">ssl.log</span> <span className="text-slate-200 font-bold">1.8K</span></div>
+          <div className="flex items-center"><span className="text-slate-400 w-20">http.log</span> <span className="text-slate-200 font-bold">0.9K</span></div>
+          <div className="flex items-center"><span className="text-amber-500 w-20">notice.log</span> <span className="text-amber-400 font-bold">6</span></div>
+          <div className="flex items-center"><span className="text-rose-500 w-20">weird.log</span> <span className="text-rose-400 font-bold">4</span></div>
+        </div>
+      </div>
+
     </div>
   );
 }
