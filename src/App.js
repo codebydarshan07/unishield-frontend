@@ -992,8 +992,7 @@ function ZeekLogsView({ navigateTo, globalSelectedEventId, setGlobalSelectedEven
     });
 
     return () => { isMounted = false; };
-  }, [selectedEvent.id]);
-
+}, [selectedEvent]);
   const handleCopyEvent = async () => {
     if (!selectedEvent.raw) return;
     try {
