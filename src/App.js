@@ -179,52 +179,51 @@ function generateHistoricalBackendEvents() {
 // SUBTLE BACKGROUND EFFECTS COMPONENT
 // ============================================================================
 const BackgroundEffects = () => (
-  <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden bg-[#02050f]">
+  <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden bg-[#02040a]">
     {/* Base Ambient Gradients */}
-    <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-indigo-900/10 blur-[150px] rounded-full"></div>
-    <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-purple-900/10 blur-[150px] rounded-full"></div>
+    <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-indigo-900/10 blur-[120px] rounded-full mix-blend-screen"></div>
+    <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-purple-900/10 blur-[120px] rounded-full mix-blend-screen"></div>
     
     {/* Technical Grid Layer */}
     <div className="absolute inset-0" style={{
-      backgroundImage: `linear-gradient(rgba(67, 56, 202, 0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(67, 56, 202, 0.04) 1px, transparent 1px)`,
-      backgroundSize: '32px 32px'
+      backgroundImage: `linear-gradient(rgba(67, 56, 202, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(67, 56, 202, 0.03) 1px, transparent 1px)`,
+      backgroundSize: '40px 40px'
     }}></div>
 
     {/* Network & Circuit Pattern Layer */}
-    <svg className="absolute inset-0 w-full h-full opacity-[0.03]" xmlns="http://www.w3.org/2000/svg">
+    <svg className="absolute inset-0 w-full h-full opacity-[0.04]" xmlns="http://www.w3.org/2000/svg">
       <defs>
-        <pattern id="soc-pattern" x="0" y="0" width="256" height="256" patternUnits="userSpaceOnUse">
+        <pattern id="soc-pattern" x="0" y="0" width="300" height="300" patternUnits="userSpaceOnUse">
           {/* Circuit Traces */}
-          <path d="M 32 0 L 32 32 L 64 64 L 128 64" fill="none" stroke="#a78bfa" strokeWidth="1" />
-          <circle cx="128" cy="64" r="2" fill="#a78bfa" />
+          <path d="M 40 0 L 40 40 L 80 80 L 150 80" fill="none" stroke="#a78bfa" strokeWidth="1" />
+          <circle cx="150" cy="80" r="2" fill="#a78bfa" />
           
-          <path d="M 0 192 L 48 192 L 80 224 L 80 256" fill="none" stroke="#818cf8" strokeWidth="1" />
-          <circle cx="48" cy="192" r="2" fill="#818cf8" />
+          <path d="M 0 220 L 60 220 L 100 260 L 100 300" fill="none" stroke="#818cf8" strokeWidth="1" />
+          <circle cx="60" cy="220" r="2" fill="#818cf8" />
           
-          <path d="M 192 256 L 192 208 L 224 176 L 256 176" fill="none" stroke="#818cf8" strokeWidth="1" />
-          <circle cx="224" cy="176" r="1.5" fill="#818cf8" />
+          <path d="M 220 300 L 220 240 L 260 200 L 300 200" fill="none" stroke="#818cf8" strokeWidth="1" />
+          <circle cx="260" cy="200" r="1.5" fill="#818cf8" />
           
           {/* Abstract Network Nodes */}
-          <circle cx="160" cy="110" r="2.5" fill="#6366f1" />
-          <circle cx="200" cy="120" r="1.5" fill="#6366f1" />
-          <circle cx="170" cy="150" r="2" fill="#6366f1" />
-          <path d="M 160 110 L 200 120 L 170 150 Z" fill="none" stroke="#6366f1" strokeWidth="0.5" />
+          <circle cx="180" cy="130" r="2.5" fill="#6366f1" />
+          <circle cx="230" cy="140" r="1.5" fill="#6366f1" />
+          <circle cx="190" cy="180" r="2" fill="#6366f1" />
+          <path d="M 180 130 L 230 140 L 190 180 Z" fill="none" stroke="#6366f1" strokeWidth="0.5" />
         </pattern>
       </defs>
       <rect width="100%" height="100%" fill="url(#soc-pattern)" />
       
       {/* Faint Horizontal Data Lines */}
-      <path d="M 0 20% C 20% 20%, 30% 30%, 50% 30% S 80% 20%, 100% 20%" fill="none" stroke="#4f46e5" strokeWidth="1" opacity="0.4" strokeDasharray="4 8" />
-      <path d="M 0 80% C 30% 80%, 40% 70%, 60% 70% S 80% 80%, 100% 80%" fill="none" stroke="#9333ea" strokeWidth="1" opacity="0.3" strokeDasharray="2 6" />
+      <path d="M 0 25% C 20% 25%, 30% 35%, 50% 35% S 80% 25%, 100% 25%" fill="none" stroke="#4f46e5" strokeWidth="1" opacity="0.3" strokeDasharray="4 8" />
+      <path d="M 0 75% C 30% 75%, 40% 65%, 60% 65% S 80% 75%, 100% 75%" fill="none" stroke="#9333ea" strokeWidth="1" opacity="0.2" strokeDasharray="2 6" />
     </svg>
 
     {/* Central UniShield Watermark */}
-    <div className="absolute top-[45%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-[0.025] flex items-center justify-center">
-      <Shield className="w-[70vh] h-[70vh] text-indigo-400" strokeWidth={0.5} />
+    <div className="absolute top-[50%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-[0.02] flex items-center justify-center">
+      <Shield className="w-[80vh] h-[80vh] text-indigo-300" strokeWidth={0.5} />
     </div>
   </div>
 );
-
 
 // ============================================================================
 // MAIN APPLICATION SHELL & ROUTING ENGINE
