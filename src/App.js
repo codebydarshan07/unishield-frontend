@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import { 
   Shield, Activity, AlertTriangle, Crosshair, 
-  Terminal, Server, Cpu, 
+  Database, Layout, Terminal, Server, Cpu, 
   Target, Radio, ShieldAlert,
   Search, ArrowRight, Menu, X, Filter, Copy, ActivitySquare, CheckCircle, Clock
 } from 'lucide-react';
@@ -940,6 +940,59 @@ function AnalyticsView({ events, globalSelectedEventId, navigateTo }) {
           </div>
         </div>
       </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5 flex-1 min-h-[160px] mt-4">
+        <div className="bg-[#0a0f1c] border border-indigo-900/30 flex flex-col p-4">
+          <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase border-b border-indigo-900/30 pb-3 mb-4">
+            {analyzedEvent ? 'CORRELATED ACTIVITY' : 'RECENT ACTIVITY'}
+          </h3>
+          <div className="flex-1 flex flex-col justify-center space-y-3">
+            {analyzedEvent ? (
+              correlatedEvents.length > 0 ? (
+                correlatedEvents.map((impact, i) => (
+                  <div key={i} className="flex justify-between items-center text-[10px] font-mono border-b border-slate-800/50 pb-2 last:border-0 last:pb-0 cursor-pointer hover:bg-slate-800/30 p-1" onClick={() => navigateTo('analytics', impact.id)}>
+                    <span className="text-slate-300 uppercase tracking-widest w-32 truncate">{impact.ai_assessment.threat_type}</span>
+                    <span className="text-slate-400">{impact.timeLabel}</span>
+                    <span className={`font-bold ${getSeverityColor(impact.ai_assessment.severity)}`}>{impact.ai_assessment.severity}</span>
+                  </div>
+                ))
+              ) : (
+                <div className="text-[10px] font-mono text-slate-500 text-center uppercase tracking-widest">No recent correlated activity from this IP</div>
+              )
+            ) : (
+              <div className="text-[10px] font-mono text-slate-500 text-center uppercase tracking-widest">Select an event to view correlations</div>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-[#0a0f1c] border border-indigo-900/30 flex flex-col p-4">
+          <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase border-b border-indigo-900/30 pb-3 mb-4">
+            {analyzedEvent ? 'MULTI-MODEL CONSENSUS' : 'MODEL HEALTH'}
+          </h3>
+          <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-[10px] font-mono">
+            {analyzedEvent ? (
+              <>
+                {Object.entries(analyzedEvent.ai_assessment.model_consensus).map(([modelKey, data]) => (
+                  <div key={modelKey} className="flex items-center justify-between bg-[#060913]/50 px-2 py-1.5 border border-slate-800/80 rounded-sm">
+                    <span className="text-slate-400 uppercase tracking-widest truncate mr-2">{modelKey.replace('_', ' ')}</span>
+                    <span className={`flex items-center tracking-wider ${data.verdict === 'THREAT' ? 'text-rose-400 font-bold' : 'text-emerald-400'}`}>
+                      {data.verdict} — {(data.confidence * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between bg-purple-900/20 px-2 py-1.5 border border-purple-500/50 rounded-sm mt-1 sm:col-span-2">
+                  <span className="text-purple-300 font-bold uppercase tracking-widest truncate mr-2">FINAL AI VERDICT</span>
+                  <span className={`flex items-center font-bold tracking-widest ${analyzedEvent.ai_assessment.verdict === 'THREAT' ? 'text-rose-500' : 'text-emerald-500'}`}>
+                    {analyzedEvent.ai_assessment.verdict}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div className="col-span-2 text-[10px] font-mono text-slate-500 text-center uppercase tracking-widest">Models Online & Healthy</div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1344,6 +1397,64 @@ function TelemetryView() {
                   {node.name}
                 </div>
                 <span className="text-emerald-400 font-bold tracking-widest">{node.status}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-[#0a0f1c] border border-indigo-900/30 p-4 shrink-0 flex flex-col relative overflow-hidden hidden sm:flex">
+        <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
+        <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase border-b border-indigo-900/30 pb-3 mb-6">DATA PIPELINE</h3>
+        <div className="grid grid-cols-3 lg:flex lg:items-center lg:justify-between gap-y-6 px-2 lg:px-8 pb-4">
+          {pipelineFlow.map((stage, i) => (
+            <React.Fragment key={i}>
+              <div className="flex flex-col items-center space-y-2 md:space-y-3">
+                <span className="text-[9px] md:text-[10px] font-mono text-slate-400 uppercase tracking-widest">{stage.name}</span>
+                <span className="w-2 h-2 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.8)]"></span>
+                <span className={`text-[9px] md:text-[10px] font-mono font-bold ${stage.isEnd ? 'text-rose-400' : 'text-slate-300'}`}>{stage.rate}</span>
+              </div>
+              {i < pipelineFlow.length - 1 && (
+                <div className="hidden lg:flex flex-1 items-center justify-center -mt-6 opacity-50">
+                  <ArrowRight className="w-4 h-4 text-indigo-400" />
+                </div>
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5 flex-1 min-h-[200px]">
+        <div className="bg-[#0a0f1c] border border-indigo-900/30 flex flex-col p-4 relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
+          <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase border-b border-indigo-900/30 pb-3 mb-2">TELEMETRY THROUGHPUT</h3>
+          <div className="flex-1 min-h-[120px] pt-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={throughputData} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorRate" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#9333ea" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#9333ea" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="2 4" stroke="#1e1b4b" vertical={false} />
+                <XAxis dataKey="time" stroke="#475569" fontSize={10} tickLine={false} axisLine={false} fontFamily="monospace" />
+                <YAxis domain={[17, 19]} stroke="#475569" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => `${val}K`} fontFamily="monospace" />
+                <RechartsTooltip contentStyle={{ backgroundColor: '#030712', border: '1px solid #312e81', fontSize: '11px', fontFamily: 'monospace', color: '#f8fafc' }} formatter={(value) => [`${value}K/s`, 'Rate']} />
+                <Area type="monotone" dataKey="rate" stroke="#9333ea" strokeWidth={1.5} fill="url(#colorRate)" activeDot={{ r: 4, fill: '#9333ea', stroke: '#0f172a' }} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="bg-[#0a0f1c] border border-indigo-900/30 flex flex-col p-4 relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
+          <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase border-b border-indigo-900/30 pb-3 mb-3">SYSTEM EVENTS</h3>
+          <div className="flex-1 overflow-y-auto pr-2 space-y-1 max-h-[150px] lg:max-h-full">
+            {systemEvents.map((evt, i) => (
+              <div key={i} className="flex font-mono text-[10px] md:text-[11px] py-1.5 border-b border-indigo-900/20 last:border-0">
+                <span className="text-slate-500 w-14 md:w-16 shrink-0">{evt.time}</span>
+                <span className="text-slate-300">{evt.event}</span>
               </div>
             ))}
           </div>
