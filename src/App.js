@@ -61,12 +61,12 @@ const getSeverityColor = (severity) => {
 
 const getSeverityBg = (severity) => {
   switch(severity) {
-    case 'CRITICAL': return 'bg-rose-500 text-white';
-    case 'HIGH': return 'bg-orange-500 text-white';
-    case 'MEDIUM': return 'bg-yellow-500 text-slate-900';
-    case 'LOW': return 'bg-purple-500 text-white';
-    case 'INFO': return 'bg-slate-700 text-slate-200';
-    default: return 'bg-[#060913] text-slate-500 border border-slate-800';
+    case 'CRITICAL': return 'bg-rose-500 text-white border-rose-500';
+    case 'HIGH': return 'bg-orange-500 text-white border-orange-400';
+    case 'MEDIUM': return 'bg-yellow-500 text-slate-900 border-yellow-400';
+    case 'LOW': return 'bg-purple-900/60 text-purple-300 border-purple-500/50';
+    case 'INFO': return 'bg-slate-700 text-slate-200 border-slate-500';
+    default: return 'bg-[#060913] text-slate-500 border-slate-800/60';
   }
 };
 
@@ -124,7 +124,6 @@ function createBackendEventContract(dateObj) {
   const logSource = Math.random() > 0.5 ? 'conn.log' : Math.random() > 0.5 ? 'dns.log' : 'ssl.log';
   const proto = ['TCP', 'UDP', 'ICMP', 'DNS'][Math.floor(Math.random() * 4)];
   
-  // Randomize actual neutralization status for realistic SOC testing
   const responseStates = ['NEUTRALIZED', 'ACTION PENDING', 'FAILED'];
   const rState = isThreat ? responseStates[Math.floor(Math.random() * responseStates.length)] : null;
 
@@ -163,7 +162,7 @@ function createBackendEventContract(dateObj) {
       },
       response_status: isThreat ? {
         state: rState,
-        action: rState === 'NEUTRALIZED' ? `Source IP ${srcIp} automatically blocked at boundary firewall.` : 
+        action: rState === 'NEUTRALIZED' ? `Source IP ${srcIp} automatically blocked at boundary firewall. Sessions terminated.` : 
                 rState === 'FAILED' ? `Attempted to block ${srcIp} but edge router timed out.` :
                 `Recommend isolating host ${srcIp} and analyzing endpoint telemetry.`,
         response_time: rState === 'NEUTRALIZED' ? `${Math.floor(Math.random() * 150) + 50}ms` : null
@@ -209,18 +208,19 @@ const BackgroundEffects = () => (
     {/* LAYER 4: ATMOSPHERIC DEPTH & GRID */}
     <div className="absolute inset-0 opacity-70" style={{
       background: `
-        radial-gradient(circle at 85% 15%, rgba(67, 56, 202, 0.4) 0%, transparent 40%),
-        radial-gradient(circle at 50% 50%, rgba(147, 51, 234, 0.15) 0%, transparent 50%),
-        radial-gradient(circle at 15% 85%, rgba(79, 70, 229, 0.3) 0%, transparent 40%)
+        radial-gradient(circle at 85% 15%, rgba(67, 56, 202, 0.4) 0%, transparent 45%),
+        radial-gradient(circle at 50% 50%, rgba(147, 51, 234, 0.2) 0%, transparent 55%),
+        radial-gradient(circle at 15% 85%, rgba(79, 70, 229, 0.3) 0%, transparent 45%)
       `
     }} />
-    <div className="absolute inset-0 opacity-50 mix-blend-overlay" style={{
-      backgroundImage: `linear-gradient(rgba(129, 140, 248, 0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(129, 140, 248, 0.2) 1px, transparent 1px)`,
-      backgroundSize: '48px 48px'
+    
+    <div className="absolute inset-0 mix-blend-overlay" style={{
+      backgroundImage: `linear-gradient(rgba(129, 140, 248, 0.09) 1px, transparent 1px), linear-gradient(90deg, rgba(129, 140, 248, 0.09) 1px, transparent 1px)`,
+      backgroundSize: '40px 40px'
     }} />
 
     {/* LAYER 3 & 2: CIRCUIT TRACES & CYBER NETWORK TOPOLOGY */}
-    <svg className="absolute inset-0 w-full h-full opacity-[0.3]" xmlns="http://www.w3.org/2000/svg">
+    <svg className="absolute inset-0 w-full h-full opacity-[0.16]" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <pattern id="soc-cyber-pattern" x="0" y="0" width="400" height="400" patternUnits="userSpaceOnUse">
           {/* Circuit Traces */}
@@ -234,10 +234,10 @@ const BackgroundEffects = () => (
           <circle cx="180" cy="260" r="2" fill="#6366f1" opacity="1" />
 
           {/* Network Topology Nodes */}
-          <path d="M 280 120 L 320 100 L 340 140 L 300 160 Z" fill="none" stroke="#c084fc" strokeWidth="1" opacity="0.6" />
-          <circle cx="280" cy="120" r="3.5" fill="#c084fc" />
+          <path d="M 280 120 L 320 100 L 340 140 L 300 160 Z" fill="none" stroke="#c084fc" strokeWidth="1.5" opacity="0.6" />
+          <circle cx="280" cy="120" r="4" fill="#c084fc" />
           <circle cx="320" cy="100" r="2" fill="#c084fc" />
-          <circle cx="340" cy="140" r="4" fill="#c084fc" />
+          <circle cx="340" cy="140" r="5" fill="#c084fc" />
           <circle cx="300" cy="160" r="3" fill="#c084fc" />
           
           {/* Data flow lines */}
@@ -248,28 +248,28 @@ const BackgroundEffects = () => (
     </svg>
 
     {/* LAYER 1: LARGE UNISHIELD WATERMARK */}
-    <div className="absolute top-[40%] right-[10%] transform -translate-y-1/2 flex flex-col items-center justify-center opacity-[0.12] mix-blend-screen pointer-events-none">
-      <Shield className="w-[70vh] h-[70vh] text-indigo-300" strokeWidth={0.5} />
-      <div className="font-mono text-[3.5vh] tracking-[0.6em] text-indigo-300 mt-6 font-bold uppercase drop-shadow-[0_0_10px_rgba(165,180,252,0.8)]">UNISHIELD AI</div>
-      <div className="font-mono text-[1.5vh] tracking-[0.4em] text-indigo-400 mt-2 font-light uppercase opacity-80">TRUST • MONITOR • PROTECT</div>
+    <div className="absolute top-[50%] right-[10%] transform -translate-y-1/2 flex flex-col items-center justify-center opacity-[0.14] mix-blend-screen pointer-events-none">
+      <Shield className="w-[65vh] h-[65vh] text-indigo-400" strokeWidth={0.5} />
+      <div className="font-mono text-[3.5vh] tracking-[0.6em] text-indigo-400 mt-6 font-bold uppercase drop-shadow-[0_0_15px_rgba(165,180,252,0.9)]">UNISHIELD AI</div>
+      <div className="font-mono text-[1.5vh] tracking-[0.4em] text-indigo-300 mt-2 font-light uppercase opacity-90">TRUST • MONITOR • PROTECT</div>
     </div>
   </div>
 );
 
 const SidebarBackground = () => (
-  <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden opacity-[0.15]">
+  <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden opacity-[0.20]">
     <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <pattern id="sidebar-pattern" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse">
-          <path d="M 0 20 L 20 20 L 40 40 L 60 40" fill="none" stroke="#818cf8" strokeWidth="1" opacity="0.7" />
-          <circle cx="60" cy="40" r="1.5" fill="#818cf8" />
-          <path d="M 100 80 L 80 80 L 60 60 L 40 60" fill="none" stroke="#a78bfa" strokeWidth="1" opacity="0.6" />
-          <circle cx="40" cy="60" r="1.5" fill="#a78bfa" />
+          <path d="M 0 20 L 20 20 L 40 40 L 60 40" fill="none" stroke="#818cf8" strokeWidth="1.5" opacity="0.8" />
+          <circle cx="60" cy="40" r="2" fill="#818cf8" />
+          <path d="M 100 80 L 80 80 L 60 60 L 40 60" fill="none" stroke="#a78bfa" strokeWidth="1.5" opacity="0.7" />
+          <circle cx="40" cy="60" r="2" fill="#a78bfa" />
         </pattern>
       </defs>
       <rect width="100%" height="100%" fill="url(#sidebar-pattern)" />
     </svg>
-    <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 opacity-20">
+    <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 opacity-30">
       <Shield className="w-48 h-48 text-indigo-500" strokeWidth={0.5} />
     </div>
   </div>
@@ -524,7 +524,7 @@ function ExecutiveView({ events, navigateTo }) {
   };
 
   // ==========================================================================
-  // PERFECT 4x6 STAGGERED 24-HOUR HONEYCOMB (Exact interconnected math)
+  // PERFECT 4x6 STAGGERED 24-HOUR HONEYCOMB
   // ==========================================================================
   const honeycombBuckets = useMemo(() => {
     const buckets = Array.from({length: 24}, (_, i) => ({
@@ -691,7 +691,7 @@ function ExecutiveView({ events, navigateTo }) {
                       content={<CustomOverviewTooltip />} 
                       cursor={{fill: 'transparent'}}
                       wrapperStyle={{ zIndex: 1000, outline: 'none' }}
-                      allowEscapeViewBox={{ x: false, y: false }}
+                      allowEscapeViewBox={{ x: true, y: true }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -722,8 +722,8 @@ function ExecutiveView({ events, navigateTo }) {
 
       <div className="flex flex-col lg:flex-row gap-4 md:gap-5">
         
-        {/* LIVE THREAT FEED (With Bounded Scroll) */}
-        <div className="flex-1 lg:flex-[0.55] bg-[#0a0f1c]/80 border border-indigo-900/30 flex flex-col relative overflow-hidden min-h-[300px] backdrop-blur-md shadow-xl rounded-sm">
+        {/* LIVE THREAT FEED (Aligned, Bounded, Equal Height) */}
+        <div className="flex-1 lg:flex-[0.55] bg-[#0a0f1c]/80 border border-indigo-900/30 flex flex-col relative overflow-hidden h-[340px] backdrop-blur-md shadow-xl rounded-sm">
           <div className="px-4 py-3 border-b border-indigo-900/30 bg-[#060913]/90 flex justify-between items-center shrink-0">
             <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase">LIVE THREAT FEED</h3>
           </div>
@@ -762,12 +762,12 @@ function ExecutiveView({ events, navigateTo }) {
           </div>
         </div>
 
-        {/* TOP THREAT SOURCES (Redesigned) */}
-        <div className="flex-1 lg:flex-[0.45] bg-[#0a0f1c]/80 border border-indigo-900/30 flex flex-col relative overflow-hidden min-h-[300px] backdrop-blur-md shadow-xl rounded-sm">
+        {/* TOP THREAT SOURCES (Aligned, Bounded, Equal Height, Starts at Top) */}
+        <div className="flex-1 lg:flex-[0.45] bg-[#0a0f1c]/80 border border-indigo-900/30 flex flex-col relative overflow-hidden h-[340px] backdrop-blur-md shadow-xl rounded-sm">
           <div className="px-4 py-3 border-b border-indigo-900/30 bg-[#060913]/90 shrink-0">
             <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase">TOP THREAT SOURCES</h3>
           </div>
-          <div className="flex-1 p-5 flex flex-col justify-center space-y-4 font-mono overflow-y-auto custom-scrollbar">
+          <div className="flex-1 p-5 flex flex-col justify-start space-y-4 font-mono overflow-y-auto custom-scrollbar pt-5">
             {topSources.length > 0 ? topSources.map((source, i) => {
               const percentage = (source.count / maxSourceCount) * 100;
               return (
@@ -788,7 +788,7 @@ function ExecutiveView({ events, navigateTo }) {
                 </div>
               );
             }) : (
-              <div className="text-[10px] text-slate-500 text-center uppercase tracking-widest">No threat data available</div>
+              <div className="text-[10px] text-slate-500 text-center uppercase tracking-widest mt-4">No threat data available</div>
             )}
           </div>
         </div>
@@ -1141,7 +1141,7 @@ function AnalyticsView({ events, globalSelectedEventId, navigateTo }) {
 }
 
 // ============================================================================
-// ZEEK LOGS VIEW (WITH FUNCTIONAL FILTERS & AI ASSESSMENT)
+// ZEEK LOGS VIEW (WITH BOUNDED SCROLL & AI ASSESSMENT)
 // ============================================================================
 function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSelectedEventId }) {
   
@@ -1269,7 +1269,7 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
 
       <div className="flex flex-col lg:flex-row gap-4 shrink-0 min-h-[450px]">
         {/* COMPACT BOUNDED ZEEK EVENT STREAM */}
-        <div className="flex-1 lg:flex-[0.60] bg-[#0a0f1c]/80 backdrop-blur-sm border border-indigo-900/30 flex flex-col relative overflow-hidden shadow-xl rounded-sm max-h-[500px]">
+        <div className="flex-1 lg:flex-[0.60] bg-[#0a0f1c]/80 backdrop-blur-sm border border-indigo-900/30 flex flex-col overflow-hidden relative shadow-xl rounded-sm max-h-[500px]">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
           <div className="px-4 py-2.5 border-b border-indigo-900/30 bg-[#060913]/90 flex justify-between items-center shrink-0">
             <h3 className="text-[11px] font-bold tracking-widest text-slate-300 uppercase">LIVE ZEEK EVENT STREAM</h3>
@@ -1281,7 +1281,7 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
               <div 
                 key={evt.id}
                 onClick={() => setGlobalSelectedEventId(evt.id)}
-                className={`p-2.5 border-l-2 cursor-pointer transition-colors ${
+                className={`p-2.5 border-l-2 cursor-pointer transition-colors rounded-sm ${
                   globalSelectedEventId === evt.id ? 'bg-purple-900/10 border-purple-500' : 'border-transparent hover:bg-slate-800/30'
                 }`}
               >
@@ -1314,7 +1314,7 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
             {selectedEvent ? (
               <>
                 {/* Event Metadata */}
-                <div className="grid grid-cols-2 gap-y-3 gap-x-2 mb-4">
+                <div className="grid grid-cols-2 gap-y-3 gap-x-2 mb-4 shrink-0">
                   <div><span className="text-slate-500 block mb-0.5">EVENT TYPE</span> <span className="text-slate-300">{selectedEvent.ai_assessment.threat_type}</span></div>
                   <div><span className="text-slate-500 block mb-0.5">LOG SOURCE</span> <span className="text-slate-300">{selectedEvent.log_source}</span></div>
                   <div><span className="text-slate-500 block mb-0.5">TIMESTAMP</span> <span className="text-slate-300">{selectedEvent.timeLabel}</span></div>
@@ -1383,7 +1383,7 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
                           </div>
                           {selectedEvent.ai_assessment.response_status?.state === 'NEUTRALIZED' && (
                             <div className="text-emerald-400 font-bold mt-2 pt-2 border-t border-indigo-900/20 text-center tracking-widest uppercase flex items-center justify-center">
-                               <CheckCircle className="w-3 h-3 mr-1.5" /> THREAT NEUTRALIZED
+                               <CheckCircle className="w-3 h-3 mr-1.5" /> AI HAS NEUTRALIZED THE THREAT
                             </div>
                           )}
                           {selectedEvent.ai_assessment.response_status?.state === 'FAILED' && (
@@ -1519,7 +1519,7 @@ function TelemetryView() {
           { label: 'PACKET DROP', value: '0.02%' },
           { label: 'PIPELINE', value: 'HEALTHY', isGreen: true }
         ].map((metric, i) => (
-          <div key={i} className="bg-[#0a0f1c]/90 backdrop-blur-sm border border-indigo-900/30 p-3 flex flex-col justify-between shadow-xl rounded-sm">
+          <div key={i} className="bg-[#0a0f1c]/80 backdrop-blur-sm border border-indigo-900/30 p-3 flex flex-col justify-between shadow-xl rounded-sm">
             <span className="text-[9px] font-mono text-slate-500 uppercase tracking-widest mb-1">{metric.label}</span>
             <span className={`text-lg md:text-xl font-mono font-light tracking-tight ${metric.isGreen ? 'text-emerald-400' : 'text-slate-200'}`}>{metric.value}</span>
           </div>
@@ -1527,7 +1527,7 @@ function TelemetryView() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5 shrink-0 min-h-[220px]">
-        <div className="bg-[#0a0f1c]/90 backdrop-blur-sm border border-indigo-900/30 flex flex-col p-4 relative overflow-hidden shadow-xl rounded-sm">
+        <div className="bg-[#0a0f1c]/80 backdrop-blur-sm border border-indigo-900/30 flex flex-col p-4 relative overflow-hidden shadow-xl rounded-sm">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
           <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase border-b border-indigo-900/30 pb-3 mb-4">COMPUTE UTILIZATION</h3>
           <div className="flex-1 flex flex-col justify-between space-y-2 lg:space-y-0">
@@ -1543,7 +1543,7 @@ function TelemetryView() {
           </div>
         </div>
 
-        <div className="bg-[#0a0f1c]/90 backdrop-blur-sm border border-indigo-900/30 flex flex-col p-4 relative overflow-hidden shadow-xl rounded-sm">
+        <div className="bg-[#0a0f1c]/80 backdrop-blur-sm border border-indigo-900/30 flex flex-col p-4 relative overflow-hidden shadow-xl rounded-sm">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
           <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase border-b border-indigo-900/30 pb-3 mb-4">SENSOR NODE STATUS</h3>
           <div className="flex-1 flex flex-col justify-center space-y-3 md:space-y-4">
@@ -1560,7 +1560,7 @@ function TelemetryView() {
         </div>
       </div>
 
-      <div className="bg-[#0a0f1c]/90 backdrop-blur-sm border border-indigo-900/30 p-4 shrink-0 flex flex-col relative overflow-hidden hidden sm:flex shadow-xl rounded-sm">
+      <div className="bg-[#0a0f1c]/80 backdrop-blur-sm border border-indigo-900/30 p-4 shrink-0 flex flex-col relative overflow-hidden hidden sm:flex shadow-xl rounded-sm">
         <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
         <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase border-b border-indigo-900/30 pb-3 mb-6">DATA PIPELINE</h3>
         <div className="grid grid-cols-3 lg:flex lg:items-center lg:justify-between gap-y-6 px-2 lg:px-8 pb-4">
@@ -1582,7 +1582,7 @@ function TelemetryView() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5 flex-1 min-h-[200px]">
-        <div className="bg-[#0a0f1c]/90 backdrop-blur-sm border border-indigo-900/30 flex flex-col p-4 relative overflow-hidden shadow-xl rounded-sm">
+        <div className="bg-[#0a0f1c]/80 backdrop-blur-sm border border-indigo-900/30 flex flex-col p-4 relative overflow-hidden shadow-xl rounded-sm">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
           <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase border-b border-indigo-900/30 pb-3 mb-2">TELEMETRY THROUGHPUT</h3>
           <div className="flex-1 min-h-[120px] pt-2">
@@ -1604,7 +1604,7 @@ function TelemetryView() {
           </div>
         </div>
 
-        <div className="bg-[#0a0f1c]/90 backdrop-blur-sm border border-indigo-900/30 flex flex-col p-4 relative overflow-hidden shadow-xl rounded-sm">
+        <div className="bg-[#0a0f1c]/80 backdrop-blur-sm border border-indigo-900/30 flex flex-col p-4 relative overflow-hidden shadow-xl rounded-sm">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
           <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase border-b border-indigo-900/30 pb-3 mb-3">SYSTEM EVENTS</h3>
           <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-1 max-h-[150px] lg:max-h-full">
