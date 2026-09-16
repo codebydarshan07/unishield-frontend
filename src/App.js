@@ -495,24 +495,8 @@ function ExecutiveView({ events, navigateTo }) {
     
   const maxSourceCount = topSources[0]?.count || 1;
 
-  const CustomOverviewTooltip = ({ active, payload }) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-[#030712] border border-[#3b528b]/60 p-2 shadow-2xl rounded-sm font-mono z-[1000] relative">
-          <p className="text-[10px] text-slate-200 m-0 flex items-center mb-1">
-            <span style={{ backgroundColor: payload[0].payload.color }} className="w-2 h-2 mr-2 inline-block rounded-sm"></span>
-            <span className="uppercase tracking-widest text-slate-400">THREAT CLASS</span>
-          </p>
-          <p className="text-[11px] font-bold text-slate-100">{payload[0].name}</p>
-          <p className="text-[10px] text-purple-400 font-bold mt-1">{payload[0].value}% DISTRIBUTION</p>
-        </div>
-      );
-    }
-    return null;
-  };
-
   // ==========================================================================
-  // RADIAL 24-HOUR CHART DATA PREPARATION
+  // RADIAL 24-HOUR RADAR CHART DATA PREPARATION
   // ==========================================================================
   const hourlyBuckets = useMemo(() => {
     const buckets = Array.from({length: 24}, (_, i) => ({
@@ -545,6 +529,7 @@ function ExecutiveView({ events, navigateTo }) {
   }, [events]);
 
   const [hoveredHex, setHoveredHex] = useState(null);
+  const [hoveredThreatClass, setHoveredThreatClass] = useState(null); // Used for left-aligned donut tooltip
 
   const RadialTooltip = () => {
     if (!hoveredHex) return null;
@@ -610,7 +595,7 @@ function ExecutiveView({ events, navigateTo }) {
 
       <div className="flex flex-col lg:flex-row gap-4 md:gap-5">
         
-        {/* RADIAL 24-HOUR CHART PANEL */}
+        {/* RADAR 24-HOUR CHART PANEL */}
         <div className="flex-1 lg:flex-[0.68] bg-[#050c1a]/75 border border-[#3b528b]/40 flex flex-col relative overflow-visible group min-h-[340px] backdrop-blur-md shadow-[0_0_20px_rgba(0,0,0,0.5)] rounded-sm">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-indigo-400/30 to-transparent"></div>
           <div className="px-4 py-3 border-b border-[#3b528b]/40 flex justify-between items-center bg-[#02050f]/60 relative z-20">
@@ -620,46 +605,86 @@ function ExecutiveView({ events, navigateTo }) {
           
           <div className="flex-1 flex flex-col md:flex-row items-center justify-center p-4 relative z-10 overflow-visible gap-6">
             
-            {/* RADIAL CHART CONTAINER */}
+            {/* RADAR CHART CONTAINER */}
             <div className="relative w-full max-w-[280px] aspect-square flex items-center justify-center">
                <RadialTooltip />
-               <svg viewBox="0 0 400 400" className="w-full h-full drop-shadow-[0_0_15px_rgba(16,185,129,0.15)]">
-                  {/* Outer Rings */}
-                  <circle cx="200" cy="200" r="160" fill="none" stroke="#3b528b" strokeWidth="1" opacity="0.3" strokeDasharray="4 4" />
-                  <circle cx="200" cy="200" r="120" fill="none" stroke="#3b528b" strokeWidth="1" opacity="0.2" />
+               <svg viewBox="0 0 400 400" className="w-full h-full drop-shadow-[0_0_15px_rgba(56,189,248,0.1)]">
                   
+                  {/* Outer & Concentric Rings */}
+                  {[90, 120, 150].map(r => (
+                    <circle key={r} cx="200" cy="200" r={r} fill="none" stroke="#3b528b" strokeWidth="1" opacity={r === 150 ? "0.4" : "0.2"} strokeDasharray={r === 150 ? "4 4" : "none"} />
+                  ))}
+                  
+                  {/* Radial Grid (Spokes) */}
+                  {hourlyBuckets.map((_, i) => {
+                     const angle = (i * 15 - 90) * (Math.PI / 180);
+                     const x1 = 200 + 60 * Math.cos(angle);
+                     const x2 = 200 + 160 * Math.cos(angle);
+                     const y1 = 200 + 60 * Math.sin(angle);
+                     const y2 = 200 + 160 * Math.sin(angle);
+                     return <line key={`grid-${i}`} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#3b528b" strokeWidth="1" opacity="0.3" />
+                  })}
+
                   {/* Inner Center Circle */}
                   <circle cx="200" cy="200" r="60" fill="#02050f" stroke="#3b528b" strokeWidth="2" opacity="0.8" />
                   <text x="200" y="195" textAnchor="middle" fill="#f1f5f9" fontSize="22" fontFamily="monospace" fontWeight="bold">24H</text>
                   <text x="200" y="215" textAnchor="middle" fill="#94a3b8" fontSize="11" fontFamily="monospace" letterSpacing="2">THREAT</text>
                   <text x="200" y="230" textAnchor="middle" fill="#94a3b8" fontSize="11" fontFamily="monospace" letterSpacing="2">ACTIVITY</text>
 
-                  {/* 24 Radial Bars */}
+                  {/* Radar Plotted Area */}
+                  <polygon 
+                    points={hourlyBuckets.map((bucket, i) => {
+                      const angle = (i * 15 - 90) * (Math.PI / 180);
+                      const valR = 60 + (bucket.events.length / maxEventsVal) * (150 - 60);
+                      return `${200 + valR * Math.cos(angle)},${200 + valR * Math.sin(angle)}`;
+                    }).join(' ')} 
+                    fill="rgba(56, 189, 248, 0.15)" 
+                    stroke="#38bdf8" 
+                    strokeWidth="1.5" 
+                    style={{ filter: `drop-shadow(0 0 8px rgba(56,189,248,0.4))` }} 
+                  />
+
+                  {/* Radar Data Points */}
                   {hourlyBuckets.map((bucket, i) => {
                      const angle = (i * 15 - 90) * (Math.PI / 180);
-                     const innerR = 75;
-                     const maxR = 150;
-                     const barLength = Math.max((bucket.events.length / maxEventsVal) * (maxR - innerR), 8); // min height 8
-                     const outerR = innerR + barLength;
-                     
-                     const x1 = 200 + innerR * Math.cos(angle);
-                     const y1 = 200 + innerR * Math.sin(angle);
-                     const x2 = 200 + outerR * Math.cos(angle);
-                     const y2 = 200 + outerR * Math.sin(angle);
-                     
+                     const valR = 60 + (bucket.events.length / maxEventsVal) * (150 - 60);
+                     const x = 200 + valR * Math.cos(angle);
+                     const y = 200 + valR * Math.sin(angle);
                      const color = getRadialColor(bucket.maxSeverity);
                      
                      return (
-                       <g key={bucket.hourLabel} 
+                       <circle 
+                          key={`point-${i}`} 
+                          cx={x} 
+                          cy={y} 
+                          r="3.5" 
+                          fill={color} 
+                          stroke="#02050f" 
+                          strokeWidth="1" 
+                          style={{ filter: `drop-shadow(0 0 4px ${color})` }} 
+                       />
+                     );
+                  })}
+
+                  {/* Invisible Interaction Wedges for Tooltip Hover */}
+                  {hourlyBuckets.map((bucket, i) => {
+                     const angle = (i * 15 - 90) * (Math.PI / 180);
+                     const x1 = 200 + 60 * Math.cos(angle);
+                     const x2 = 200 + 160 * Math.cos(angle);
+                     const y1 = 200 + 60 * Math.sin(angle);
+                     const y2 = 200 + 160 * Math.sin(angle);
+                     return (
+                       <line 
+                          key={`hover-${i}`}
+                          x1={x1} y1={y1} x2={x2} y2={y2} 
+                          stroke="transparent" 
+                          strokeWidth="20"
                           onMouseEnter={() => setHoveredHex(bucket.hourLabel)}
                           onMouseLeave={() => setHoveredHex(null)}
                           onClick={() => navigateTo('stream')}
-                          className="cursor-pointer transition-all duration-300 hover:opacity-80"
-                       >
-                          <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={color} strokeWidth="12" strokeLinecap="round" 
-                                style={{ filter: `drop-shadow(0 0 6px ${color}80)` }} />
-                       </g>
-                     )
+                          className="cursor-pointer"
+                       />
+                     );
                   })}
 
                   {/* Hour Labels */}
@@ -710,28 +735,49 @@ function ExecutiveView({ events, navigateTo }) {
             <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-200 uppercase drop-shadow-sm">THREAT CLASSES</h3>
           </div>
           <div className="flex-1 flex flex-col p-4 relative z-10">
-            <div className="flex-1 relative min-h-[140px] z-10">
-              {dynamicThreatDistribution.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={dynamicThreatDistribution} innerRadius="68%" outerRadius="90%" paddingAngle={2} dataKey="value" stroke="none" isAnimationActive={false}>
-                      {dynamicThreatDistribution.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-                    </Pie>
-                    <RechartsTooltip 
-                      content={<CustomOverviewTooltip />} 
-                      cursor={{fill: 'transparent'}}
-                      wrapperStyle={{ zIndex: 1000, outline: 'none' }}
-                      allowEscapeViewBox={{ x: true, y: true }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-full text-[10px] font-mono text-slate-500 uppercase tracking-widest">Awaiting Data</div>
-              )}
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+            <div className="flex-1 relative min-h-[140px] z-10 flex">
+              
+              {/* LEFT SIDE TOOLTIP CONTAINER */}
+              <div className="absolute top-0 left-0 w-[45%] h-full flex items-center justify-start z-20 pointer-events-none">
+                 {hoveredThreatClass && (
+                   <div className="bg-[#030712] border border-[#3b528b]/60 p-2 shadow-2xl rounded-sm font-mono w-full max-w-[130px]">
+                     <p className="text-[9px] text-slate-400 uppercase tracking-widest border-b border-[#3b528b]/40 pb-1 mb-1 font-bold">THREAT CLASS</p>
+                     <p className="text-[10px] font-bold text-slate-100 flex items-center mb-1">
+                       <span style={{ backgroundColor: hoveredThreatClass.color }} className="w-2 h-2 mr-1.5 inline-block rounded-sm shadow-sm shrink-0"></span>
+                       <span className="truncate">{hoveredThreatClass.name}</span>
+                     </p>
+                     <p className="text-[9px] text-indigo-300 font-bold">{hoveredThreatClass.value}% DISTRIBUTION</p>
+                   </div>
+                 )}
+              </div>
+
+              {/* RIGHT SIDE PIE CHART */}
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie 
+                    data={dynamicThreatDistribution} 
+                    cx="65%" 
+                    cy="50%" 
+                    innerRadius="68%" 
+                    outerRadius="90%" 
+                    paddingAngle={2} 
+                    dataKey="value" 
+                    stroke="none" 
+                    isAnimationActive={false}
+                    onMouseEnter={(data, index) => setHoveredThreatClass(dynamicThreatDistribution[index])}
+                    onMouseLeave={() => setHoveredThreatClass(null)}
+                  >
+                    {dynamicThreatDistribution.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+
+              {/* CENTER TEXT */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pl-[30%]">
                 <span className="text-2xl lg:text-3xl font-mono font-bold text-slate-100 drop-shadow-md">{activeThreatsCount}</span>
                 <span className="text-[9px] font-mono text-slate-400 uppercase tracking-widest mt-0.5">Active Threats</span>
               </div>
+
             </div>
             <div className="mt-4 pt-4 border-t border-[#3b528b]/40 z-0">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-2">
@@ -1305,7 +1351,7 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
         <div className="flex-1 lg:flex-[0.60] bg-[#050c1a]/75 backdrop-blur-md border border-[#3b528b]/40 flex flex-col overflow-hidden relative shadow-[0_0_20px_rgba(0,0,0,0.5)] rounded-sm max-h-[500px]">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-indigo-400/30 to-transparent"></div>
           <div className="px-4 py-2.5 border-b border-[#3b528b]/40 bg-[#02050f]/60 flex justify-between items-center shrink-0">
-            <h3 className="text-[11px] font-bold tracking-widest text-slate-200 uppercase drop-shadow-sm">LIVE ZEEK EVENT STREAM</h3>
+            <h3 className="text-[11px] font-bold tracking-widest text-slate-300 uppercase drop-shadow-sm">LIVE ZEEK EVENT STREAM</h3>
             <span className="text-[9px] text-indigo-300 font-bold">{filteredEvents.length} MATCHING EVENTS</span>
           </div>
           
