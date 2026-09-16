@@ -176,56 +176,56 @@ function generateHistoricalBackendEvents() {
 }
 
 // ============================================================================
-// FULLY REBUILT PREMIUM SOC BACKGROUND EFFECTS
+// VISIBLE PREMIUM SOC BACKGROUND EFFECTS
 // ============================================================================
 const BackgroundEffects = () => (
   <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden bg-[#030611]">
     
     {/* LAYER 4: ATMOSPHERIC DEPTH & GRID */}
-    <div className="absolute inset-0 opacity-40" style={{
+    <div className="absolute inset-0 opacity-60" style={{
       background: `
-        radial-gradient(circle at 85% 15%, rgba(67, 56, 202, 0.25) 0%, transparent 50%),
-        radial-gradient(circle at 50% 50%, rgba(147, 51, 234, 0.12) 0%, transparent 60%),
-        radial-gradient(circle at 15% 85%, rgba(79, 70, 229, 0.2) 0%, transparent 50%)
+        radial-gradient(circle at 85% 15%, rgba(67, 56, 202, 0.3) 0%, transparent 50%),
+        radial-gradient(circle at 50% 50%, rgba(147, 51, 234, 0.15) 0%, transparent 60%),
+        radial-gradient(circle at 15% 85%, rgba(79, 70, 229, 0.25) 0%, transparent 50%)
       `
     }} />
-    <div className="absolute inset-0 opacity-30 mix-blend-overlay" style={{
-      backgroundImage: `linear-gradient(rgba(129, 140, 248, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(129, 140, 248, 0.1) 1px, transparent 1px)`,
+    <div className="absolute inset-0 opacity-40 mix-blend-overlay" style={{
+      backgroundImage: `linear-gradient(rgba(129, 140, 248, 0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(129, 140, 248, 0.15) 1px, transparent 1px)`,
       backgroundSize: '48px 48px'
     }} />
 
     {/* LAYER 3 & 2: CIRCUIT TRACES & CYBER NETWORK TOPOLOGY */}
-    <svg className="absolute inset-0 w-full h-full opacity-[0.12]" xmlns="http://www.w3.org/2000/svg">
+    <svg className="absolute inset-0 w-full h-full opacity-[0.2]" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <pattern id="soc-cyber-pattern" x="0" y="0" width="400" height="400" patternUnits="userSpaceOnUse">
           {/* Circuit Traces */}
-          <path d="M 0 40 L 40 40 L 60 60 L 120 60 L 140 80 L 180 80" fill="none" stroke="#818cf8" strokeWidth="1" opacity="0.6" />
-          <circle cx="180" cy="80" r="2.5" fill="#818cf8" opacity="0.8" />
+          <path d="M 0 40 L 40 40 L 60 60 L 120 60 L 140 80 L 180 80" fill="none" stroke="#818cf8" strokeWidth="1.5" opacity="0.7" />
+          <circle cx="180" cy="80" r="3" fill="#818cf8" opacity="0.9" />
           
-          <path d="M 400 280 L 360 280 L 320 240 L 260 240 L 240 220 L 200 220" fill="none" stroke="#a78bfa" strokeWidth="1" opacity="0.5" />
-          <circle cx="200" cy="220" r="2" fill="#a78bfa" opacity="0.8" />
+          <path d="M 400 280 L 360 280 L 320 240 L 260 240 L 240 220 L 200 220" fill="none" stroke="#a78bfa" strokeWidth="1.5" opacity="0.6" />
+          <circle cx="200" cy="220" r="2.5" fill="#a78bfa" opacity="0.9" />
 
-          <path d="M 80 400 L 80 360 L 120 320 L 120 280 L 140 260 L 180 260" fill="none" stroke="#6366f1" strokeWidth="1" opacity="0.4" />
-          <circle cx="180" cy="260" r="1.5" fill="#6366f1" opacity="0.8" />
+          <path d="M 80 400 L 80 360 L 120 320 L 120 280 L 140 260 L 180 260" fill="none" stroke="#6366f1" strokeWidth="1.5" opacity="0.5" />
+          <circle cx="180" cy="260" r="2" fill="#6366f1" opacity="0.9" />
 
           {/* Network Topology Nodes */}
-          <path d="M 280 120 L 320 100 L 340 140 L 300 160 Z" fill="none" stroke="#c084fc" strokeWidth="0.5" opacity="0.4" />
-          <circle cx="280" cy="120" r="2.5" fill="#c084fc" />
-          <circle cx="320" cy="100" r="1.5" fill="#c084fc" />
-          <circle cx="340" cy="140" r="3" fill="#c084fc" />
-          <circle cx="300" cy="160" r="2" fill="#c084fc" />
+          <path d="M 280 120 L 320 100 L 340 140 L 300 160 Z" fill="none" stroke="#c084fc" strokeWidth="1" opacity="0.5" />
+          <circle cx="280" cy="120" r="3.5" fill="#c084fc" />
+          <circle cx="320" cy="100" r="2" fill="#c084fc" />
+          <circle cx="340" cy="140" r="4" fill="#c084fc" />
+          <circle cx="300" cy="160" r="3" fill="#c084fc" />
           
           {/* Data flow lines */}
-          <path d="M 0 320 C 100 320, 150 360, 200 360 S 300 320, 400 320" fill="none" stroke="#818cf8" strokeWidth="1" strokeDasharray="4 12" opacity="0.3" />
+          <path d="M 0 320 C 100 320, 150 360, 200 360 S 300 320, 400 320" fill="none" stroke="#818cf8" strokeWidth="1.5" strokeDasharray="4 12" opacity="0.4" />
         </pattern>
       </defs>
       <rect width="100%" height="100%" fill="url(#soc-cyber-pattern)" />
     </svg>
 
     {/* LAYER 1: LARGE UNISHIELD WATERMARK */}
-    <div className="absolute top-[50%] right-[5%] transform -translate-y-1/2 flex flex-col items-center justify-center opacity-[0.05] mix-blend-screen">
-      <Shield className="w-[65vh] h-[65vh] text-indigo-200" strokeWidth={0.5} />
-      <div className="font-mono text-[3vh] tracking-[0.6em] text-indigo-200 mt-6 font-bold uppercase drop-shadow-lg">UNISHIELD AI</div>
+    <div className="absolute top-[50%] right-[10%] transform -translate-y-1/2 flex flex-col items-center justify-center opacity-[0.08] mix-blend-screen">
+      <Shield className="w-[70vh] h-[70vh] text-indigo-300" strokeWidth={0.5} />
+      <div className="font-mono text-[4vh] tracking-[0.6em] text-indigo-300 mt-6 font-bold uppercase drop-shadow-lg">UNISHIELD AI</div>
     </div>
   </div>
 );
@@ -477,7 +477,7 @@ function ExecutiveView({ events, navigateTo }) {
   };
 
   // ==========================================================================
-  // EXACT 24-HOUR HONEYCOMB LOGIC
+  // PERFECT 4x6 STAGGERED 24-HOUR HONEYCOMB
   // ==========================================================================
   const honeycombBuckets = useMemo(() => {
     const buckets = Array.from({length: 24}, (_, i) => ({
@@ -502,7 +502,7 @@ function ExecutiveView({ events, navigateTo }) {
       if (b.events.length > 0) {
         b.maxSeverity = b.events.reduce((max, e) => 
           severityRank[e.ai_assessment.severity] > severityRank[max] ? e.ai_assessment.severity : max
-        , 'NONE');
+        , 'LOW');
       }
     });
 
@@ -556,23 +556,6 @@ function ExecutiveView({ events, navigateTo }) {
     }
   };
 
-  const renderHexRow = (startIndex, endIndex, isOffset) => (
-    <div className={`flex relative ${isOffset ? 'ml-[26px] -mt-[14px]' : '-mt-[14px]'}`} style={{ gap: '4px' }}>
-      {honeycombBuckets.slice(startIndex, endIndex).map(b => (
-        <div 
-          key={b.hourLabel}
-          onMouseEnter={() => setHoveredHex(b.hourLabel)}
-          onMouseLeave={() => setHoveredHex(null)}
-          onClick={() => navigateTo('stream')}
-          className={`w-[48px] h-[56px] flex items-center justify-center cursor-pointer transition-transform duration-200 hover:scale-110 hover:z-50 border ${getHoneycombColor(b.maxSeverity)}`}
-          style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}
-        >
-          <span className="text-[10px] font-mono opacity-90 pointer-events-none">{b.hourLabel}</span>
-        </div>
-      ))}
-    </div>
-  );
-
   return (
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
@@ -597,7 +580,9 @@ function ExecutiveView({ events, navigateTo }) {
             <div className="relative flex flex-col items-center justify-center pt-[14px]">
               <HoneycombTooltip />
               <div className="flex flex-col scale-90 sm:scale-100 md:scale-110 transform origin-center transition-transform">
-                <div className="flex relative" style={{ gap: '4px' }}>
+                
+                {/* ROW 1: 00 to 05 */}
+                <div className="flex relative z-10" style={{ gap: '4px' }}>
                   {honeycombBuckets.slice(0, 6).map(b => (
                     <div 
                       key={b.hourLabel}
@@ -607,13 +592,59 @@ function ExecutiveView({ events, navigateTo }) {
                       className={`w-[48px] h-[56px] flex items-center justify-center cursor-pointer transition-transform duration-200 hover:scale-110 hover:z-50 border ${getHoneycombColor(b.maxSeverity)}`}
                       style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}
                     >
-                      <span className="text-[10px] font-mono opacity-90 pointer-events-none">{b.hourLabel}</span>
+                      <span className="text-[10px] font-mono font-bold opacity-90 pointer-events-none">{b.hourLabel}</span>
                     </div>
                   ))}
                 </div>
-                {renderHexRow(6, 12, true)}
-                {renderHexRow(12, 18, false)}
-                {renderHexRow(18, 24, true)}
+
+                {/* ROW 2: 06 to 11 (Interlocking Offset) */}
+                <div className="flex relative z-0" style={{ gap: '4px', marginTop: '-14px', marginLeft: '26px' }}>
+                  {honeycombBuckets.slice(6, 12).map(b => (
+                    <div 
+                      key={b.hourLabel}
+                      onMouseEnter={() => setHoveredHex(b.hourLabel)}
+                      onMouseLeave={() => setHoveredHex(null)}
+                      onClick={() => navigateTo('stream')}
+                      className={`w-[48px] h-[56px] flex items-center justify-center cursor-pointer transition-transform duration-200 hover:scale-110 hover:z-50 border ${getHoneycombColor(b.maxSeverity)}`}
+                      style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}
+                    >
+                      <span className="text-[10px] font-mono font-bold opacity-90 pointer-events-none">{b.hourLabel}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* ROW 3: 12 to 17 (Aligned with Row 1) */}
+                <div className="flex relative z-10" style={{ gap: '4px', marginTop: '-14px' }}>
+                  {honeycombBuckets.slice(12, 18).map(b => (
+                    <div 
+                      key={b.hourLabel}
+                      onMouseEnter={() => setHoveredHex(b.hourLabel)}
+                      onMouseLeave={() => setHoveredHex(null)}
+                      onClick={() => navigateTo('stream')}
+                      className={`w-[48px] h-[56px] flex items-center justify-center cursor-pointer transition-transform duration-200 hover:scale-110 hover:z-50 border ${getHoneycombColor(b.maxSeverity)}`}
+                      style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}
+                    >
+                      <span className="text-[10px] font-mono font-bold opacity-90 pointer-events-none">{b.hourLabel}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* ROW 4: 18 to 23 (Aligned with Row 2) */}
+                <div className="flex relative z-0" style={{ gap: '4px', marginTop: '-14px', marginLeft: '26px' }}>
+                  {honeycombBuckets.slice(18, 24).map(b => (
+                    <div 
+                      key={b.hourLabel}
+                      onMouseEnter={() => setHoveredHex(b.hourLabel)}
+                      onMouseLeave={() => setHoveredHex(null)}
+                      onClick={() => navigateTo('stream')}
+                      className={`w-[48px] h-[56px] flex items-center justify-center cursor-pointer transition-transform duration-200 hover:scale-110 hover:z-50 border ${getHoneycombColor(b.maxSeverity)}`}
+                      style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}
+                    >
+                      <span className="text-[10px] font-mono font-bold opacity-90 pointer-events-none">{b.hourLabel}</span>
+                    </div>
+                  ))}
+                </div>
+
               </div>
             </div>
           </div>
@@ -990,7 +1021,7 @@ function AnalyticsView({ events, globalSelectedEventId, navigateTo }) {
 
         <div className="bg-[#0a0f1c]/90 backdrop-blur-sm border border-indigo-900/30 flex flex-col p-4 shadow-xl">
           <div className="flex flex-col border-b border-indigo-900/30 pb-3 mb-4">
-            <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase">MODEL INFERENCE LATENCY</h3>
+            <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-300 uppercase border-b border-indigo-900/30 pb-3 mb-4">MODEL INFERENCE LATENCY</h3>
             <span className="text-[9px] font-mono text-purple-400/80 tracking-widest uppercase mt-0.5">LOWER IS BETTER</span>
           </div>
           <div className="flex-1 min-h-[160px]">
@@ -1195,6 +1226,7 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
       </div>
 
       <div className="flex flex-col lg:flex-row gap-4 shrink-0 min-h-[450px]">
+        {/* LEFT PANEL: Zeek Event Stream */}
         <div className="flex-1 lg:flex-[0.60] bg-[#0a0f1c]/90 backdrop-blur-sm border border-indigo-900/30 flex flex-col overflow-hidden relative shadow-xl">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
           <div className="px-4 py-2.5 border-b border-indigo-900/30 bg-[#060913]/80 flex justify-between items-center">
@@ -1229,6 +1261,7 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
           </div>
         </div>
 
+        {/* RIGHT PANEL: Event Inspector & AI Assessment */}
         <div className="flex-1 lg:flex-[0.40] bg-[#0a0f1c]/90 backdrop-blur-sm border border-indigo-900/30 flex flex-col overflow-hidden relative shadow-xl">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent"></div>
           <div className="px-4 py-2.5 border-b border-indigo-900/30 bg-[#060913]/80">
@@ -1238,6 +1271,7 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
           <div className="flex-1 overflow-y-auto p-4 flex flex-col text-[10px] relative z-10">
             {selectedEvent ? (
               <>
+                {/* Event Metadata */}
                 <div className="grid grid-cols-2 gap-y-3 gap-x-2 mb-4">
                   <div><span className="text-slate-500 block mb-0.5">EVENT TYPE</span> <span className="text-slate-300">{selectedEvent.ai_assessment.threat_type}</span></div>
                   <div><span className="text-slate-500 block mb-0.5">LOG SOURCE</span> <span className="text-slate-300">{selectedEvent.log_source}</span></div>
@@ -1247,6 +1281,7 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
                   <div><span className="text-slate-500 block mb-0.5">DESTINATION</span> <span className="text-slate-300">{selectedEvent.dst_ip}:{selectedEvent.ports}</span></div>
                 </div>
 
+                {/* Event Action Utilities */}
                 <div className="flex space-x-2 mb-4 pb-4 border-b border-indigo-900/30">
                   <button 
                     onClick={handleCopyEvent}
@@ -1263,6 +1298,7 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
                   </button>
                 </div>
 
+                {/* AUTOMATED AI THREAT ASSESSMENT PANEL */}
                 <div className="flex-1 flex flex-col space-y-3">
                   <h4 className="text-[10px] font-bold text-purple-400 uppercase tracking-widest flex items-center">
                     <Cpu className="w-3 h-3 mr-1.5" /> AI THREAT ASSESSMENT
