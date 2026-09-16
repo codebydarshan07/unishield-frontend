@@ -7,14 +7,15 @@ import {
   Shield, Activity, AlertTriangle, Crosshair, 
   Layout, Terminal, Server, Cpu, 
   Target, ShieldAlert,
-  Search, ArrowRight, Menu, X, Filter, Copy, ActivitySquare, CheckCircle, Clock, XCircle, Play, Link, Zap
+  Search, ArrowRight, Menu, X, Filter, Copy, ActivitySquare, Play, Link, Zap
 } from 'lucide-react';
 
 // ============================================================================
 // ENVIRONMENT & API CONFIGURATION
+// (Commented out to prevent Vercel unused-variable errors until backend is live)
 // ============================================================================
-const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL || 'http://localhost:8000';
-const WS_BASE_URL = import.meta.env?.VITE_WS_URL || 'ws://localhost:8000/ws';
+// const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL || 'http://localhost:8000';
+// const WS_BASE_URL = import.meta.env?.VITE_WS_URL || 'ws://localhost:8000/ws';
 
 // ============================================================================
 // GLOBAL SCROLLBAR STYLES
@@ -84,7 +85,7 @@ function useLiveBackend() {
   const [connectionState, setConnectionState] = useState('CONNECTING');
   
   // Backend Capability Flags (Set to false until FastAPI provides them)
-  const [capabilities, setCapabilities] = useState({
+  const [capabilities] = useState({
     explainability: false,
     correlation: false,
     replay: false,
@@ -94,9 +95,6 @@ function useLiveBackend() {
 
   useEffect(() => {
     let isMounted = true;
-    
-    // Simulate initial capability fetch from FastAPI
-    // fetch(`${API_BASE_URL}/api/v1/capabilities`) ...
     
     setTimeout(() => {
       if (!isMounted) return;
@@ -144,7 +142,6 @@ function createBackendEventContract(dateObj) {
       severity: severity,
       verdict: isThreat ? 'THREAT' : 'FALSE POSITIVE',
       confidence: isThreat ? (0.88 + Math.random() * 0.11) : (0.75 + Math.random() * 0.20),
-      // Explanations/Features remain here but will only render if capability == true
       explanation: `AI detected abnormal behavior matching known ${type} signatures.`,
       evidence: ["Connection frequency exceeds baseline by 400%"],
       model_consensus: {
@@ -254,9 +251,23 @@ export default function UniShieldDashboard() {
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    const handlePopState = (e) => {
+      if (e.state) {
+        setActivePage(e.state.page || 'overview');
+        if (e.state.eventId) setGlobalSelectedEventId(e.state.eventId);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    window.history.replaceState({ page: activePage, eventId: globalSelectedEventId }, '');
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [activePage, globalSelectedEventId]);
+
   const navigateTo = (page, eventId = null) => {
     setActivePage(page);
     if (eventId) setGlobalSelectedEventId(eventId);
+    const query = eventId ? `?page=${page}&event=${eventId}` : `?page=${page}`;
+    window.history.pushState({ page, eventId }, '', query);
     setMobileMenuOpen(false);
   };
 
@@ -448,28 +459,16 @@ function ExecutiveView({ events, navigateTo }) {
     
   const maxSourceCount = topSources[0]?.count || 1;
 
-  const CustomOverviewTooltip = ({ active, payload }) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-[#030712] border border-[#3b528b]/60 p-2 shadow-2xl rounded-sm font-mono z-[1000] relative">
-          <p className="text-[10px] text-slate-200 m-0 flex items-center mb-1">
-            <span style={{ backgroundColor: payload[0].payload.color }} className="w-2 h-2 mr-2 inline-block rounded-sm"></span>
-            <span className="uppercase tracking-widest text-slate-400">THREAT CLASS</span>
-          </p>
-          <p className="text-[11px] font-bold text-slate-100">{payload[0].name}</p>
-          <p className="text-[10px] text-purple-400 font-bold mt-1">{payload[0].value}% DISTRIBUTION</p>
-        </div>
-      );
-    }
-    return null;
-  };
-
+  // ==========================================================================
+  // RADIAL 24-HOUR RADAR CHART DATA PREPARATION
+  // ==========================================================================
   const hourlyBuckets = useMemo(() => {
     const buckets = Array.from({length: 24}, (_, i) => ({
       hourLabel: pad(i),
       events: [],
       maxSeverity: 'NONE'
     }));
+
     const now = Date.now();
     const oneDayMs = 24 * 60 * 60 * 1000;
     
@@ -481,6 +480,7 @@ function ExecutiveView({ events, navigateTo }) {
     });
 
     const severityRank = { 'NONE': 0, 'LOW': 1, 'MEDIUM': 2, 'HIGH': 3, 'CRITICAL': 4 };
+
     buckets.forEach(b => {
       if (b.events.length > 0) {
         b.maxSeverity = b.events.reduce((max, e) => 
@@ -488,6 +488,7 @@ function ExecutiveView({ events, navigateTo }) {
         , 'LOW');
       }
     });
+
     return buckets;
   }, [events]);
 
@@ -1376,6 +1377,7 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
           <div className="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col text-[10px] relative z-10">
             {selectedEvent ? (
               <>
+                {/* Event Metadata */}
                 <div className="shrink-0">
                   <div className="text-sm md:text-base font-bold text-slate-100 uppercase tracking-wide mb-3 drop-shadow-sm">{selectedEvent.ai_assessment.threat_type}</div>
                   <div className="grid grid-cols-2 gap-y-3 gap-x-2 mb-4">
@@ -1388,6 +1390,7 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
                   </div>
                 </div>
 
+                {/* Event Action Utilities */}
                 <div className="flex space-x-2 mb-4 pb-4 border-b border-[#3b528b]/40 shrink-0">
                   <button 
                     onClick={handleCopyEvent}
@@ -1404,7 +1407,8 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
                   </button>
                 </div>
 
-                <div className="flex flex-col space-y-3 shrink-0">
+                {/* AUTOMATED AI THREAT ASSESSMENT PANEL */}
+                <div className="flex flex-col space-y-3 shrink-0 mt-2">
                   <h4 className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest flex items-center drop-shadow-sm">
                     <Cpu className="w-3 h-3 mr-1.5" /> AI THREAT ASSESSMENT
                   </h4>
@@ -1474,17 +1478,10 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
                   >
                     [ VIEW IN THREAT ANALYTICS ]
                   </button>
-
-                  <div className="mt-4 pt-2 border-t border-[#3b528b]/40 shrink-0">
-                    <span className="text-slate-400 block mb-2 uppercase tracking-widest font-bold">RAW EVENT</span>
-                    <pre className="bg-[#02050f]/80 border border-[#3b528b]/40 p-3 rounded text-[10px] text-indigo-300/80 overflow-x-auto whitespace-pre-wrap word-break-all font-bold shadow-inner">
-                      {JSON.stringify(selectedEvent.raw_event, null, 2)}
-                    </pre>
-                  </div>
                 </div>
               </>
             ) : (
-              <div className="flex items-center justify-center h-full text-[10px] font-mono text-slate-500 uppercase tracking-widest font-bold">Waiting for live data...</div>
+              <div className="flex-1 flex items-center justify-center text-[10px] font-mono text-slate-500 font-bold uppercase">Waiting for live data...</div>
             )}
           </div>
         </div>
@@ -1522,6 +1519,14 @@ function TelemetryView({ capabilities }) {
     { time: '16:50', rate: 17.8 }, { time: '16:51', rate: 18.2 },
     { time: '16:52', rate: 18.4 }, { time: '16:53', rate: 18.1 },
     { time: '16:54', rate: 18.5 }, { time: '16:55', rate: 18.4 },
+  ];
+
+  const systemEvents = [
+    { time: '16:55', event: 'Kafka healthy' },
+    { time: '16:54', event: 'Zeek event buffer flush' },
+    { time: '16:53', event: 'ML pipeline ready' },
+    { time: '16:51', event: 'New sensor node connected' },
+    { time: '16:48', event: 'Kafka rebalancing complete' },
   ];
 
   return (
