@@ -459,6 +459,22 @@ function ExecutiveView({ events, navigateTo }) {
     
   const maxSourceCount = topSources[0]?.count || 1;
 
+  const CustomOverviewTooltip = ({ active, payload }) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-[#030712] border border-[#3b528b]/60 p-2 shadow-2xl rounded-sm font-mono z-[1000] relative">
+          <p className="text-[10px] text-slate-200 m-0 flex items-center mb-1">
+            <span style={{ backgroundColor: payload[0].payload.color }} className="w-2 h-2 mr-2 inline-block rounded-sm"></span>
+            <span className="uppercase tracking-widest text-slate-400">THREAT CLASS</span>
+          </p>
+          <p className="text-[11px] font-bold text-slate-100">{payload[0].name}</p>
+          <p className="text-[10px] text-purple-400 font-bold mt-1">{payload[0].value}% DISTRIBUTION</p>
+        </div>
+      );
+    }
+    return null;
+  };
+
   // ==========================================================================
   // RADIAL 24-HOUR RADAR CHART DATA PREPARATION
   // ==========================================================================
@@ -752,7 +768,7 @@ function ExecutiveView({ events, navigateTo }) {
 
       <div className="flex flex-col lg:flex-row gap-4 md:gap-5">
         
-        {/* LIVE THREAT FEED */}
+        {/* LIVE THREAT FEED (Aligned, Bounded, Equal Height) */}
         <div className="flex-1 lg:flex-[0.55] bg-[#050c1a]/75 border border-[#3b528b]/40 flex flex-col relative overflow-hidden h-[340px] backdrop-blur-md shadow-[0_0_20px_rgba(0,0,0,0.5)] rounded-sm">
           <div className="px-4 py-3 border-b border-[#3b528b]/40 bg-[#02050f]/60 flex justify-between items-center shrink-0">
             <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-200 uppercase drop-shadow-sm">LIVE THREAT FEED</h3>
@@ -792,7 +808,7 @@ function ExecutiveView({ events, navigateTo }) {
           </div>
         </div>
 
-        {/* TOP THREAT SOURCES */}
+        {/* TOP THREAT SOURCES (Aligned, Bounded, Equal Height, Starts at Top) */}
         <div className="flex-1 lg:flex-[0.45] bg-[#050c1a]/75 border border-[#3b528b]/40 flex flex-col relative overflow-hidden h-[340px] backdrop-blur-md shadow-[0_0_20px_rgba(0,0,0,0.5)] rounded-sm">
           <div className="px-4 py-3 border-b border-[#3b528b]/40 bg-[#02050f]/60 shrink-0">
             <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-200 uppercase drop-shadow-sm">TOP THREAT SOURCES</h3>
@@ -927,7 +943,7 @@ function LiveStreamView({ events, navigateTo, globalSelectedEventId, setGlobalSe
         <div className="flex-1 lg:flex-[0.35] bg-[#050c1a]/75 backdrop-blur-md border border-[#3b528b]/40 flex flex-col relative overflow-hidden shadow-[0_0_20px_rgba(0,0,0,0.5)] rounded-sm max-h-[450px]">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-indigo-400/30 to-transparent"></div>
           <div className="px-4 py-3 border-b border-[#3b528b]/40 bg-[#02050f]/60 flex justify-between items-center shrink-0">
-            <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-200 uppercase drop-shadow-sm">SELECTED EVENT</h3>
+            <h3 className="text-[11px] font-bold tracking-widest text-slate-200 uppercase drop-shadow-sm">SELECTED EVENT</h3>
             <span className="text-[10px] font-mono text-indigo-300 font-bold">{selectedEvent?.id}</span>
           </div>
           
@@ -1519,14 +1535,6 @@ function TelemetryView({ capabilities }) {
     { time: '16:50', rate: 17.8 }, { time: '16:51', rate: 18.2 },
     { time: '16:52', rate: 18.4 }, { time: '16:53', rate: 18.1 },
     { time: '16:54', rate: 18.5 }, { time: '16:55', rate: 18.4 },
-  ];
-
-  const systemEvents = [
-    { time: '16:55', event: 'Kafka healthy' },
-    { time: '16:54', event: 'Zeek event buffer flush' },
-    { time: '16:53', event: 'ML pipeline ready' },
-    { time: '16:51', event: 'New sensor node connected' },
-    { time: '16:48', event: 'Kafka rebalancing complete' },
   ];
 
   return (
