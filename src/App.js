@@ -7,15 +7,8 @@ import {
   Shield, Activity, AlertTriangle, Crosshair, 
   Layout, Terminal, Server, Cpu, 
   Target, ShieldAlert,
-  Search, ArrowRight, Menu, X, Filter, Copy, ActivitySquare, Play, Link, Zap
+  Search, ArrowRight, Menu, X, Filter, Copy, ActivitySquare, CheckCircle, Clock, XCircle
 } from 'lucide-react';
-
-// ============================================================================
-// ENVIRONMENT & API CONFIGURATION
-// (Commented out to prevent Vercel unused-variable errors until backend is live)
-// ============================================================================
-// const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL || 'http://localhost:8000';
-// const WS_BASE_URL = import.meta.env?.VITE_WS_URL || 'ws://localhost:8000/ws';
 
 // ============================================================================
 // GLOBAL SCROLLBAR STYLES
@@ -78,24 +71,14 @@ const getSeverityBg = (severity) => {
 };
 
 // ============================================================================
-// LIVE BACKEND ADAPTER & CAPABILITY DISCOVERY
+// LIVE BACKEND ADAPTER
 // ============================================================================
 function useLiveBackend() {
   const [events, setEvents] = useState([]);
   const [connectionState, setConnectionState] = useState('CONNECTING');
-  
-  // Backend Capability Flags (Set to false until FastAPI provides them)
-  const [capabilities] = useState({
-    explainability: false,
-    correlation: false,
-    replay: false,
-    simulation: false,
-    mitigation: false
-  });
 
   useEffect(() => {
     let isMounted = true;
-    
     setTimeout(() => {
       if (!isMounted) return;
       const initialEvents = generateHistoricalBackendEvents();
@@ -115,7 +98,7 @@ function useLiveBackend() {
     };
   }, []);
 
-  return { events, connectionState, capabilities };
+  return { events, connectionState };
 }
 
 function createBackendEventContract(dateObj) {
@@ -123,16 +106,21 @@ function createBackendEventContract(dateObj) {
   const isCritical = isThreat && Math.random() > 0.85;
   const severity = isCritical ? 'CRITICAL' : isThreat ? (Math.random() > 0.6 ? 'HIGH' : 'MEDIUM') : 'LOW';
   
-  const threatTypes = ['Port Scan', 'DGA / DNS Anomaly', 'Beaconing', 'HTTP Flood', 'SYN Flood'];
+  const threatTypes = ['Port Scan', 'DGA / DNS Anomaly', 'Beaconing', 'Anomalous Flow', 'Mismatched Cert'];
   const type = isThreat ? threatTypes[Math.floor(Math.random() * threatTypes.length)] : 'Normal Traffic';
   const srcIp = `10.24.${Math.floor(Math.random() * 50)}.${Math.floor(Math.random() * 255)}`;
   const eventId = `EVT-${Math.floor(Math.random() * 90000) + 10000}`;
+  const logSource = Math.random() > 0.5 ? 'conn.log' : Math.random() > 0.5 ? 'dns.log' : 'ssl.log';
+  const proto = ['TCP', 'UDP', 'ICMP', 'DNS'][Math.floor(Math.random() * 4)];
   
+  const responseStates = ['NEUTRALIZED', 'ACTION PENDING', 'FAILED'];
+  const rState = isThreat ? responseStates[Math.floor(Math.random() * responseStates.length)] : null;
+
   return {
     id: eventId,
     timestamp: dateObj.getTime(),
     timeLabel: `${pad(dateObj.getHours())}:${pad(dateObj.getMinutes())}:${pad(dateObj.getSeconds())}`,
-    log_source: 'conn.log',
+    log_source: logSource,
     src_ip: srcIp,
     dst_ip: `198.51.100.${Math.floor(Math.random() * 255)}`,
     ports: [53, 80, 443, 8080, 22][Math.floor(Math.random() * 5)],
@@ -142,17 +130,50 @@ function createBackendEventContract(dateObj) {
       severity: severity,
       verdict: isThreat ? 'THREAT' : 'FALSE POSITIVE',
       confidence: isThreat ? (0.88 + Math.random() * 0.11) : (0.75 + Math.random() * 0.20),
-      explanation: `AI detected abnormal behavior matching known ${type} signatures.`,
-      evidence: ["Connection frequency exceeds baseline by 400%"],
+      explanation: isThreat 
+        ? `AI detected abnormal behavior because the source host triggered multiple anomaly thresholds. The observed traffic pattern strongly correlates with known ${type} signatures and deviates significantly from the 30-day historical baseline.`
+        : `Traffic initially matched suspicious heuristics, but deep AI analysis determined this is consistent with authorized internal synchronization protocols. No anomalous payload detected.`,
+      evidence: isThreat ? [
+        "Connection frequency exceeds baseline by 400%",
+        "High port fan-out ratio detected",
+        "Payload entropy matches automated script generation",
+        "Source IP lacks previous operational history"
+      ] : [
+        "Destination is a known internal service",
+        "Connection frequency matches established cron timing",
+        "Payload signatures match normal operational traffic"
+      ],
       model_consensus: {
         isolation_forest: { verdict: isThreat ? 'THREAT' : 'FALSE POSITIVE', confidence: 0.92 },
+        random_forest: { verdict: isThreat ? 'THREAT' : 'FALSE POSITIVE', confidence: 0.94 },
+        xgboost: { verdict: isThreat ? 'THREAT' : 'THREAT', confidence: 0.81 },
+        autoencoder: { verdict: 'FALSE POSITIVE', confidence: 0.88 },
+      },
+      response_status: isThreat ? {
+        state: rState,
+        action: rState === 'NEUTRALIZED' ? `Source IP ${srcIp} automatically blocked at boundary firewall. Sessions terminated.` : 
+                rState === 'FAILED' ? `Attempted to block ${srcIp} but edge router timed out.` :
+                `Recommend isolating host ${srcIp} and analyzing endpoint telemetry.`,
+        response_time: rState === 'NEUTRALIZED' ? `${Math.floor(Math.random() * 150) + 50}ms` : null
+      } : null,
+      features_extracted: {
+        entropy: isThreat ? 'HIGH' : 'LOW',
+        arrival_variance: isThreat ? 'HIGH' : 'MED',
+        fan_out: isThreat ? 'HIGH' : 'LOW',
+        payload_variance: 'MED'
       }
     },
     raw_event: {
       "ts": dateObj.getTime() / 1000,
       "uid": eventId,
       "id.orig_h": srcIp,
-      "proto": "TCP"
+      "id.orig_p": Math.floor(Math.random() * 65000),
+      "id.resp_h": "198.51.100.4",
+      "id.resp_p": 443,
+      "proto": proto,
+      "conn_state": "S0",
+      "orig_bytes": 0,
+      "resp_bytes": 0
     }
   };
 }
@@ -172,6 +193,8 @@ function generateHistoricalBackendEvents() {
 // ============================================================================
 const BackgroundEffects = () => (
   <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden bg-[#020713]">
+    
+    {/* LAYER 5: AMBIENT ILLUMINATION */}
     <div className="absolute inset-0 opacity-[0.85]" style={{
       background: `
         radial-gradient(circle at 80% 20%, rgba(67, 56, 202, 0.45) 0%, transparent 40%),
@@ -179,29 +202,42 @@ const BackgroundEffects = () => (
         radial-gradient(circle at 20% 80%, rgba(59, 130, 246, 0.3) 0%, transparent 45%)
       `
     }} />
+    
+    {/* LAYER 4: TECHNICAL GRID */}
     <div className="absolute inset-0 opacity-[0.08]" style={{
       backgroundImage: `linear-gradient(rgba(148, 163, 184, 0.8) 1px, transparent 1px), linear-gradient(90deg, rgba(148, 163, 184, 0.8) 1px, transparent 1px)`,
       backgroundSize: '40px 40px'
     }} />
+
+    {/* LAYER 2 & 3: NETWORK TOPOLOGY & CIRCUIT TRACES */}
     <svg className="absolute inset-0 w-full h-full opacity-[0.16]" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <pattern id="soc-cyber-pattern" x="0" y="0" width="400" height="400" patternUnits="userSpaceOnUse">
+          {/* Circuit Traces */}
           <path d="M 0 40 L 40 40 L 60 60 L 120 60 L 140 80 L 180 80" fill="none" stroke="#818cf8" strokeWidth="2" opacity="0.8" />
           <circle cx="180" cy="80" r="3.5" fill="#818cf8" opacity="1" />
+          
           <path d="M 400 280 L 360 280 L 320 240 L 260 240 L 240 220 L 200 220" fill="none" stroke="#a78bfa" strokeWidth="2" opacity="0.8" />
           <circle cx="200" cy="220" r="3" fill="#a78bfa" opacity="1" />
+
           <path d="M 80 400 L 80 360 L 120 320 L 120 280 L 140 260 L 180 260" fill="none" stroke="#60a5fa" strokeWidth="2" opacity="0.7" />
           <circle cx="180" cy="260" r="2.5" fill="#60a5fa" opacity="1" />
+
+          {/* Network Topology Nodes */}
           <path d="M 280 120 L 320 100 L 340 140 L 300 160 Z" fill="none" stroke="#c084fc" strokeWidth="1.5" opacity="0.7" />
           <circle cx="280" cy="120" r="4.5" fill="#c084fc" />
           <circle cx="320" cy="100" r="2.5" fill="#c084fc" />
           <circle cx="340" cy="140" r="5" fill="#c084fc" />
           <circle cx="300" cy="160" r="3.5" fill="#c084fc" />
+          
+          {/* Data flow lines */}
           <path d="M 0 320 C 100 320, 150 360, 200 360 S 300 320, 400 320" fill="none" stroke="#818cf8" strokeWidth="1.5" strokeDasharray="4 12" opacity="0.5" />
         </pattern>
       </defs>
       <rect width="100%" height="100%" fill="url(#soc-cyber-pattern)" />
     </svg>
+
+    {/* LAYER 1: LARGE UNISHIELD WATERMARK */}
     <div className="absolute top-[45%] right-[8%] transform -translate-y-1/2 flex flex-col items-center justify-center opacity-[0.14] pointer-events-none">
       <Shield className="w-[60vh] h-[60vh] text-indigo-400" strokeWidth={0.5} />
       <div className="font-mono text-[3.5vh] tracking-[0.6em] text-indigo-400 mt-6 font-bold uppercase drop-shadow-[0_0_15px_rgba(129,140,248,0.6)]">UNISHIELD AI</div>
@@ -239,7 +275,7 @@ export default function UniShieldDashboard() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
 
-  const { events, connectionState, capabilities } = useLiveBackend();
+  const { events, connectionState } = useLiveBackend();
   
   useEffect(() => {
     const interval = setInterval(() => setPulse(prev => !prev), 2000);
@@ -405,10 +441,10 @@ export default function UniShieldDashboard() {
             
             <div className={`flex flex-col space-y-4 md:space-y-5 min-h-full max-w-[1600px] mx-auto pb-6 transition-opacity duration-300 ${connectionState === 'DISCONNECTED' ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
               {activePage === 'overview' && <ExecutiveView events={events} navigateTo={navigateTo} />}
-              {activePage === 'stream' && <LiveStreamView events={events} navigateTo={navigateTo} globalSelectedEventId={globalSelectedEventId} setGlobalSelectedEventId={setGlobalSelectedEventId} capabilities={capabilities} />}
-              {activePage === 'analytics' && <AnalyticsView events={events} globalSelectedEventId={globalSelectedEventId} navigateTo={navigateTo} capabilities={capabilities} />}
-              {activePage === 'logs' && <ZeekLogsView events={events} navigateTo={navigateTo} globalSelectedEventId={globalSelectedEventId} setGlobalSelectedEventId={setGlobalSelectedEventId} capabilities={capabilities} />}
-              {activePage === 'telemetry' && <TelemetryView capabilities={capabilities} />}
+              {activePage === 'stream' && <LiveStreamView events={events} navigateTo={navigateTo} globalSelectedEventId={globalSelectedEventId} setGlobalSelectedEventId={setGlobalSelectedEventId} />}
+              {activePage === 'analytics' && <AnalyticsView events={events} globalSelectedEventId={globalSelectedEventId} navigateTo={navigateTo} />}
+              {activePage === 'logs' && <ZeekLogsView events={events} navigateTo={navigateTo} globalSelectedEventId={globalSelectedEventId} setGlobalSelectedEventId={setGlobalSelectedEventId} />}
+              {activePage === 'telemetry' && <TelemetryView />}
             </div>
           </div>
         </main>
@@ -459,22 +495,6 @@ function ExecutiveView({ events, navigateTo }) {
     
   const maxSourceCount = topSources[0]?.count || 1;
 
-  const CustomOverviewTooltip = ({ active, payload }) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-[#030712] border border-[#3b528b]/60 p-2 shadow-2xl rounded-sm font-mono z-[1000] relative">
-          <p className="text-[10px] text-slate-200 m-0 flex items-center mb-1">
-            <span style={{ backgroundColor: payload[0].payload.color }} className="w-2 h-2 mr-2 inline-block rounded-sm"></span>
-            <span className="uppercase tracking-widest text-slate-400">THREAT CLASS</span>
-          </p>
-          <p className="text-[11px] font-bold text-slate-100">{payload[0].name}</p>
-          <p className="text-[10px] text-purple-400 font-bold mt-1">{payload[0].value}% DISTRIBUTION</p>
-        </div>
-      );
-    }
-    return null;
-  };
-
   // ==========================================================================
   // RADIAL 24-HOUR RADAR CHART DATA PREPARATION
   // ==========================================================================
@@ -509,7 +529,7 @@ function ExecutiveView({ events, navigateTo }) {
   }, [events]);
 
   const [hoveredHex, setHoveredHex] = useState(null);
-  const [hoveredThreatClass, setHoveredThreatClass] = useState(null); 
+  const [hoveredThreatClass, setHoveredThreatClass] = useState(null); // Used for left-aligned donut tooltip
 
   const RadialTooltip = () => {
     if (!hoveredHex) return null;
@@ -548,12 +568,12 @@ function ExecutiveView({ events, navigateTo }) {
 
   const getRadialColor = (severity) => {
     switch(severity) {
-      case 'CRITICAL': return '#ef4444'; 
-      case 'HIGH': return '#f97316'; 
-      case 'MEDIUM': return '#eab308'; 
+      case 'CRITICAL': return '#ef4444'; // red
+      case 'HIGH': return '#f97316'; // orange
+      case 'MEDIUM': return '#eab308'; // yellow
       case 'LOW': 
       case 'NONE': 
-      default: return '#10b981'; 
+      default: return '#10b981'; // green
     }
   };
 
@@ -585,14 +605,17 @@ function ExecutiveView({ events, navigateTo }) {
           
           <div className="flex-1 flex flex-col md:flex-row items-center justify-center p-4 relative z-10 overflow-visible gap-6">
             
+            {/* RADAR CHART CONTAINER */}
             <div className="relative w-full max-w-[280px] aspect-square flex items-center justify-center">
                <RadialTooltip />
                <svg viewBox="0 0 400 400" className="w-full h-full drop-shadow-[0_0_15px_rgba(56,189,248,0.1)]">
                   
+                  {/* Outer & Concentric Rings */}
                   {[90, 120, 150].map(r => (
                     <circle key={r} cx="200" cy="200" r={r} fill="none" stroke="#3b528b" strokeWidth="1" opacity={r === 150 ? "0.4" : "0.2"} strokeDasharray={r === 150 ? "4 4" : "none"} />
                   ))}
                   
+                  {/* Radial Grid (Spokes) */}
                   {hourlyBuckets.map((_, i) => {
                      const angle = (i * 15 - 90) * (Math.PI / 180);
                      const x1 = 200 + 60 * Math.cos(angle);
@@ -602,11 +625,13 @@ function ExecutiveView({ events, navigateTo }) {
                      return <line key={`grid-${i}`} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#3b528b" strokeWidth="1" opacity="0.3" />
                   })}
 
+                  {/* Inner Center Circle */}
                   <circle cx="200" cy="200" r="60" fill="#02050f" stroke="#3b528b" strokeWidth="2" opacity="0.8" />
                   <text x="200" y="195" textAnchor="middle" fill="#f1f5f9" fontSize="22" fontFamily="monospace" fontWeight="bold">24H</text>
                   <text x="200" y="215" textAnchor="middle" fill="#94a3b8" fontSize="11" fontFamily="monospace" letterSpacing="2">THREAT</text>
                   <text x="200" y="230" textAnchor="middle" fill="#94a3b8" fontSize="11" fontFamily="monospace" letterSpacing="2">ACTIVITY</text>
 
+                  {/* Radar Plotted Area */}
                   <polygon 
                     points={hourlyBuckets.map((bucket, i) => {
                       const angle = (i * 15 - 90) * (Math.PI / 180);
@@ -619,6 +644,7 @@ function ExecutiveView({ events, navigateTo }) {
                     style={{ filter: `drop-shadow(0 0 8px rgba(56,189,248,0.4))` }} 
                   />
 
+                  {/* Radar Data Points */}
                   {hourlyBuckets.map((bucket, i) => {
                      const angle = (i * 15 - 90) * (Math.PI / 180);
                      const valR = 60 + (bucket.events.length / maxEventsVal) * (150 - 60);
@@ -640,6 +666,7 @@ function ExecutiveView({ events, navigateTo }) {
                      );
                   })}
 
+                  {/* Invisible Interaction Wedges for Tooltip Hover */}
                   {hourlyBuckets.map((bucket, i) => {
                      const angle = (i * 15 - 90) * (Math.PI / 180);
                      const x1 = 200 + 60 * Math.cos(angle);
@@ -660,17 +687,19 @@ function ExecutiveView({ events, navigateTo }) {
                      );
                   })}
 
+                  {/* Hour Labels */}
                   {['00', '03', '06', '09', '12', '15', '18', '21'].map(label => {
                       const h = parseInt(label);
                       const angle = (h * 15 - 90) * (Math.PI / 180);
                       const r = 180;
                       const x = 200 + r * Math.cos(angle);
-                      const y = 200 + r * Math.sin(angle) + 4; 
+                      const y = 200 + r * Math.sin(angle) + 4; // slight vertical offset for text
                       return <text key={label} x={x} y={y} textAnchor="middle" fill="#cbd5e1" fontSize="14" fontFamily="monospace" fontWeight="bold">{label}</text>
                   })}
                </svg>
             </div>
 
+            {/* RIGHT SIDE METRICS & LEGEND */}
             <div className="flex flex-col space-y-4 w-full md:w-[180px] shrink-0">
               <div className="bg-[#02050f]/60 border border-[#3b528b]/40 rounded-sm p-3 shadow-inner">
                 <h4 className="text-[10px] text-slate-400 font-mono tracking-widest mb-2 uppercase font-bold">Peak Hour</h4>
@@ -687,6 +716,7 @@ function ExecutiveView({ events, navigateTo }) {
                 <div className="text-emerald-400 font-mono text-[10px] mt-1 font-bold">▲ Live Data Active</div>
               </div>
 
+              {/* Legend */}
               <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#3b528b]/40 mt-2">
                  <div className="flex items-center"><div className="w-2 h-2 rounded-full bg-[#10b981] mr-1.5 shadow-[0_0_5px_#10b981]"></div><span className="text-[9px] font-mono text-slate-300">Normal</span></div>
                  <div className="flex items-center"><div className="w-2 h-2 rounded-full bg-[#eab308] mr-1.5 shadow-[0_0_5px_#eab308]"></div><span className="text-[9px] font-mono text-slate-300">Suspicious</span></div>
@@ -851,9 +881,9 @@ function ExecutiveView({ events, navigateTo }) {
 }
 
 // ============================================================================
-// LIVE THREAT STREAM VIEW
+// LIVE THREAT STREAM
 // ============================================================================
-function LiveStreamView({ events, navigateTo, globalSelectedEventId, setGlobalSelectedEventId, capabilities }) {
+function LiveStreamView({ events, navigateTo, globalSelectedEventId, setGlobalSelectedEventId }) {
   
   const sortedEvents = useMemo(() => {
     return [...events].sort((a, b) => {
@@ -928,29 +958,26 @@ function LiveStreamView({ events, navigateTo, globalSelectedEventId, setGlobalSe
                       <span className="text-[10px] text-slate-400 w-12 sm:w-16 font-bold">{evt.timeLabel}</span>
                     </div>
                   </div>
-                  {capabilities.explainability && (
-                    <div className="mt-2 pt-2 border-t border-[#3b528b]/30 text-[9px] text-slate-300 truncate">
-                      <span className="font-bold text-indigo-300">AI:</span> {evt.ai_assessment.explanation}
-                    </div>
-                  )}
+                  <div className="mt-2 pt-2 border-t border-[#3b528b]/30 text-[9px] text-slate-300 truncate">
+                    <span className="font-bold text-indigo-300">AI:</span> {evt.ai_assessment.explanation}
+                  </div>
                 </div>
               );
             })}
           </div>
         </div>
 
-        {/* EVENT INSPECTOR */}
         <div className="flex-1 lg:flex-[0.35] bg-[#050c1a]/75 backdrop-blur-md border border-[#3b528b]/40 flex flex-col relative overflow-hidden shadow-[0_0_20px_rgba(0,0,0,0.5)] rounded-sm max-h-[450px]">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-indigo-400/30 to-transparent"></div>
           <div className="px-4 py-3 border-b border-[#3b528b]/40 bg-[#02050f]/60 flex justify-between items-center shrink-0">
-            <h3 className="text-[11px] font-bold tracking-widest text-slate-200 uppercase drop-shadow-sm">SELECTED EVENT</h3>
+            <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-200 uppercase drop-shadow-sm">SELECTED EVENT</h3>
             <span className="text-[10px] font-mono text-indigo-300 font-bold">{selectedEvent?.id}</span>
           </div>
           
           <div className="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col text-[10px]">
             {selectedEvent ? (
               <>
-                <div className="shrink-0">
+                <div>
                   <div className="text-sm md:text-base font-bold text-slate-100 uppercase tracking-wide mb-3 drop-shadow-sm">{selectedEvent.ai_assessment.threat_type}</div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-2 text-slate-400 mb-4 pb-3 border-b border-[#3b528b]/40 font-bold">
                     <div>SEVERITY: <span className={getSeverityColor(selectedEvent.ai_assessment.severity)}>{selectedEvent.ai_assessment.severity}</span></div>
@@ -960,82 +987,46 @@ function LiveStreamView({ events, navigateTo, globalSelectedEventId, setGlobalSe
                     <div>VERDICT: <span className={selectedEvent.ai_assessment.verdict === 'THREAT' ? 'text-rose-400' : 'text-emerald-400'}>{selectedEvent.ai_assessment.verdict}</span></div>
                     <div>CONFIDENCE: <span className="text-indigo-300">{(selectedEvent.ai_assessment.confidence * 100).toFixed(1)}%</span></div>
                   </div>
-                </div>
-
-                {/* AI CAPABILITY ADAPTER */}
-                <div className="flex flex-col space-y-3 shrink-0 mt-2">
-                  <h4 className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest flex items-center drop-shadow-sm">
-                    <Cpu className="w-3 h-3 mr-1.5" /> AI THREAT ASSESSMENT
-                  </h4>
-
-                  {capabilities.explainability ? (
-                    <>
-                      <div className="bg-[#02050f]/80 p-2 border border-[#3b528b]/40 rounded text-[9px] shadow-sm">
-                          <span className="text-slate-400 block mb-1 uppercase tracking-widest font-bold">Why was this flagged?</span>
-                          <p className="text-slate-200 leading-relaxed mb-2 font-bold">{selectedEvent.ai_assessment.explanation}</p>
-                          <span className="text-slate-400 block mb-1 uppercase tracking-widest font-bold">Evidence</span>
-                          <ul className="list-disc list-inside text-slate-200 space-y-0.5 ml-1 font-bold">
-                            {selectedEvent.ai_assessment.evidence.map((ev, i) => <li key={i}>{ev}</li>)}
-                          </ul>
-                      </div>
-                      {Object.keys(selectedEvent.ai_assessment.model_consensus).length > 0 && (
-                        <div className="bg-[#02050f]/80 p-2 border border-[#3b528b]/40 rounded text-[9px] shadow-sm">
-                            <span className="text-slate-400 block mb-1 uppercase tracking-widest font-bold">Model Consensus</span>
-                            <div className="space-y-1 mb-2 font-bold">
-                              {Object.entries(selectedEvent.ai_assessment.model_consensus).map(([modelKey, data]) => (
-                                <div key={modelKey} className="flex justify-between items-center">
-                                  <span className="text-slate-300 capitalize">{modelKey.replace('_', ' ')}</span>
-                                  <span className="text-slate-200">
-                                    <span className={data.verdict === 'THREAT' ? 'text-rose-400' : 'text-emerald-400'}>{data.verdict}</span>
-                                    <span className="ml-2 opacity-70">{(data.confidence * 100).toFixed(0)}%</span>
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
+                  <div>
+                    <span className="block text-[9px] text-slate-400 uppercase tracking-widest mb-2 font-bold">DETECTION FEATURES</span>
+                    <div className="grid grid-cols-2 gap-1.5 text-[9px]">
+                      {Object.entries(selectedEvent.ai_assessment.features_extracted || {}).map(([key, val]) => (
+                        <div key={key} className="bg-[#02050f]/80 p-1.5 rounded border border-[#3b528b]/40 flex justify-between shadow-sm">
+                          <span className="text-slate-400 uppercase truncate pr-2 font-bold">{key.replace(/_/g, ' ')}</span>
+                          <span className={`font-bold ${val === 'HIGH' ? 'text-rose-400' : val === 'MED' ? 'text-amber-400' : 'text-slate-200'}`}>{val}</span>
                         </div>
-                      )}
-                    </>
-                  ) : (
-                    <div className="bg-[#02050f]/60 p-4 border border-[#3b528b]/30 rounded-sm shadow-inner flex flex-col items-center justify-center text-center opacity-70">
-                      <Cpu className="w-5 h-5 text-slate-500 mb-2" />
-                      <span className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-widest">AI Explanation</span>
-                      <span className="text-[9px] font-mono text-rose-500 uppercase tracking-widest mt-1">Backend Capability Unavailable</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="mt-4 pt-4 border-t border-[#3b528b]/40 flex flex-col space-y-2">
+                  {selectedEvent.ai_assessment.response_status?.state === 'NEUTRALIZED' && (
+                    <div className="bg-emerald-900/30 border border-emerald-500/50 text-emerald-400 text-center py-2 rounded text-[10px] font-bold uppercase tracking-widest mb-2 flex items-center justify-center shadow-sm">
+                       <CheckCircle className="w-3 h-3 mr-2" /> THREAT NEUTRALIZED
                     </div>
                   )}
-
-                  {/* MITIGATION CAPABILITY ADAPTER */}
-                  <h4 className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest flex items-center drop-shadow-sm mt-4">
-                    <Shield className="w-3 h-3 mr-1.5" /> MITIGATION CONTROL
-                  </h4>
-
-                  {capabilities.mitigation ? (
-                    <div className="bg-indigo-900/20 p-2 border border-indigo-500/40 rounded text-[9px] shadow-sm">
-                        <span className="text-slate-400 block mb-0.5 uppercase tracking-widest font-bold">Recommended Action</span>
-                        <p className="text-slate-200 mb-3 font-bold">{selectedEvent.ai_assessment.response_status?.action || "Isolate endpoint."}</p>
-                        
-                        <div className="flex space-x-2">
-                           <button className="flex-1 bg-emerald-500/20 hover:bg-emerald-500/40 border border-emerald-500/50 text-emerald-400 py-1.5 rounded uppercase font-bold tracking-widest transition-colors">[ APPLY ]</button>
-                           <button className="flex-1 bg-[#02050f] hover:bg-[#3b528b]/40 border border-[#3b528b]/60 text-slate-400 hover:text-slate-200 py-1.5 rounded uppercase font-bold tracking-widest transition-colors">[ DISMISS ]</button>
-                        </div>
+                  {selectedEvent.ai_assessment.response_status?.state === 'FAILED' && (
+                    <div className="bg-rose-900/30 border border-rose-500/50 text-rose-300 text-center py-2 rounded text-[10px] font-bold uppercase tracking-widest mb-2 flex items-center justify-center shadow-sm">
+                       <XCircle className="w-3 h-3 mr-2" /> RESPONSE FAILED
                     </div>
-                  ) : (
-                    <div className="bg-[#02050f]/60 p-4 border border-[#3b528b]/30 rounded-sm shadow-inner flex flex-col items-center justify-center text-center opacity-70 mb-4">
-                      <ShieldAlert className="w-5 h-5 text-slate-500 mb-2" />
-                      <span className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-widest">Mitigation Engine</span>
-                      <span className="text-[9px] font-mono text-rose-500 uppercase tracking-widest mt-1">Backend Capability Unavailable</span>
+                  )}
+                  {selectedEvent.ai_assessment.response_status?.state === 'ACTION PENDING' && (
+                    <div className="bg-amber-900/30 border border-amber-500/50 text-amber-300 text-center py-2 rounded text-[10px] font-bold uppercase tracking-widest mb-2 flex items-center justify-center shadow-sm">
+                       <Clock className="w-3 h-3 mr-2 animate-pulse" /> RESPONSE IN PROGRESS
                     </div>
                   )}
 
                   <button 
                     onClick={() => navigateTo('analytics', selectedEvent.id)}
-                    className="w-full mt-2 bg-indigo-900/30 hover:bg-indigo-900/50 border border-indigo-500/50 text-indigo-200 text-[10px] font-mono font-bold tracking-widest uppercase py-2 rounded transition-all active:scale-[0.98] text-center shadow-[0_0_10px_rgba(99,102,241,0.2)] hover:shadow-[0_0_15px_rgba(99,102,241,0.4)] shrink-0"
+                    className="w-full bg-indigo-900/40 hover:bg-indigo-900/60 border border-indigo-500/50 text-indigo-200 text-[10px] font-mono font-bold tracking-widest uppercase py-2 rounded transition-all active:scale-[0.98] text-center shadow-[0_0_10px_rgba(99,102,241,0.2)] hover:shadow-[0_0_15px_rgba(99,102,241,0.4)]"
                   >
                     [ VIEW IN THREAT ANALYTICS ]
                   </button>
                 </div>
               </>
             ) : (
-              <div className="flex-1 flex items-center justify-center text-[10px] font-mono text-slate-500 font-bold uppercase">Waiting for live data...</div>
+              <div className="flex-1 flex items-center justify-center text-[10px] font-mono text-slate-500 font-bold uppercase">No event selected</div>
             )}
           </div>
         </div>
@@ -1045,9 +1036,9 @@ function LiveStreamView({ events, navigateTo, globalSelectedEventId, setGlobalSe
 }
 
 // ============================================================================
-// THREAT ANALYTICS VIEW
+// THREAT ANALYTICS
 // ============================================================================
-function AnalyticsView({ events, globalSelectedEventId, navigateTo, capabilities }) {
+function AnalyticsView({ events, globalSelectedEventId, navigateTo }) {
   const analyzeRef = useRef(null);
   
   const analyzedEvent = globalSelectedEventId ? events.find(e => e.id === globalSelectedEventId) : null;
@@ -1084,6 +1075,8 @@ function AnalyticsView({ events, globalSelectedEventId, navigateTo, capabilities
   })).sort((a,b) => b.value - a.value) : [
     { name: 'Source Entropy', value: 31 }, { name: 'Arrival Variance', value: 24 }, { name: 'Fan-out Ratio', value: 19 }
   ];
+
+  const correlatedEvents = analyzedEvent ? events.filter(e => e.src_ip === analyzedEvent.src_ip && e.id !== analyzedEvent.id).slice(0,3) : [];
 
   return (
     <div className="flex flex-col h-full space-y-4 md:space-y-5">
@@ -1125,35 +1118,26 @@ function AnalyticsView({ events, globalSelectedEventId, navigateTo, capabilities
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5 shrink-0 min-h-[260px]">
-        {/* EXPLAINABILITY CAPABILITY ADAPTER */}
         <div className="bg-[#050c1a]/75 backdrop-blur-md border border-[#3b528b]/40 flex flex-col p-4 shadow-[0_0_20px_rgba(0,0,0,0.5)] rounded-sm">
           <div className="flex flex-col border-b border-[#3b528b]/40 pb-3 mb-4">
             <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-200 uppercase drop-shadow-sm">
-              EVENT FEATURE EXPLANATION
+              {analyzedEvent ? 'EVENT FEATURE EXPLANATION' : 'RELATIVE FEATURE IMPORTANCE'}
             </h3>
             <span className="text-[9px] font-mono text-indigo-400/80 tracking-widest uppercase mt-0.5 font-bold">
               NORMALIZED CONTRIBUTION
             </span>
           </div>
-          {capabilities.explainability ? (
-            <div className="flex-1 flex flex-col justify-between space-y-2 lg:space-y-0">
-              {displayFeatures.map((feat) => (
-                <div key={feat.name} className="flex items-center">
-                  <span className="w-32 md:w-36 text-[10px] font-mono text-slate-300 uppercase tracking-widest truncate font-bold">{feat.name}</span>
-                  <div className="flex-1 mx-3 bg-[#02050f] h-2 border border-[#3b528b]/40 rounded-sm shadow-inner">
-                    <div className="bg-indigo-500/80 h-full transition-all duration-500 rounded-sm shadow-sm" style={{ width: `${feat.value}%` }}></div>
-                  </div>
-                  <span className="w-8 text-right text-[10px] font-mono text-slate-200 font-bold">{feat.value}%</span>
+          <div className="flex-1 flex flex-col justify-between space-y-2 lg:space-y-0">
+            {displayFeatures.map((feat) => (
+              <div key={feat.name} className="flex items-center">
+                <span className="w-32 md:w-36 text-[10px] font-mono text-slate-300 uppercase tracking-widest truncate font-bold">{feat.name}</span>
+                <div className="flex-1 mx-3 bg-[#02050f] h-2 border border-[#3b528b]/40 rounded-sm shadow-inner">
+                  <div className="bg-indigo-500/80 h-full transition-all duration-500 rounded-sm shadow-sm" style={{ width: `${feat.value}%` }}></div>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-center opacity-60">
-              <Cpu className="w-6 h-6 text-slate-500 mb-2" />
-              <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest">AI Explainability</span>
-              <span className="text-[10px] font-mono text-rose-500 uppercase tracking-widest mt-1">Backend Capability Unavailable</span>
-            </div>
-          )}
+                <span className="w-8 text-right text-[10px] font-mono text-slate-200 font-bold">{feat.value}%</span>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="bg-[#050c1a]/75 backdrop-blur-md border border-[#3b528b]/40 flex flex-col p-4 shadow-[0_0_20px_rgba(0,0,0,0.5)] rounded-sm">
@@ -1184,40 +1168,55 @@ function AnalyticsView({ events, globalSelectedEventId, navigateTo, capabilities
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-5 flex-1 min-h-[160px] mt-4">
-        {/* CORRELATION CAPABILITY ADAPTER */}
         <div className="bg-[#050c1a]/75 backdrop-blur-md border border-[#3b528b]/40 flex flex-col p-4 shadow-[0_0_20px_rgba(0,0,0,0.5)] rounded-sm">
           <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-200 uppercase border-b border-[#3b528b]/40 pb-3 mb-4 drop-shadow-sm">
-            CORRELATED ACTIVITY INCIDENTS
+            {analyzedEvent ? 'CORRELATED ACTIVITY' : 'RECENT ACTIVITY'}
           </h3>
-          {capabilities.correlation ? (
-            <div className="flex-1 flex flex-col justify-center space-y-3">
-              {/* Correlation rendering would go here */}
-            </div>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-center opacity-60">
-              <Link className="w-6 h-6 text-slate-500 mb-2" />
-              <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest">Attack Correlation Engine</span>
-              <span className="text-[10px] font-mono text-rose-500 uppercase tracking-widest mt-1">Backend Capability Unavailable</span>
-            </div>
-          )}
+          <div className="flex-1 flex flex-col justify-center space-y-3">
+            {analyzedEvent ? (
+              correlatedEvents.length > 0 ? (
+                correlatedEvents.map((impact, i) => (
+                  <div key={i} className="flex justify-between items-center text-[10px] font-mono border-b border-[#3b528b]/30 pb-2 last:border-0 last:pb-0 cursor-pointer hover:bg-[#3b528b]/20 p-1 rounded-sm transition-colors" onClick={() => navigateTo('analytics', impact.id)}>
+                    <span className="text-slate-200 uppercase tracking-widest w-32 truncate font-bold">{impact.ai_assessment.threat_type}</span>
+                    <span className="text-slate-400 font-bold">{impact.timeLabel}</span>
+                    <span className={`font-bold ${getSeverityColor(impact.ai_assessment.severity)}`}>{impact.ai_assessment.severity}</span>
+                  </div>
+                ))
+              ) : (
+                <div className="text-[10px] font-mono text-slate-500 text-center uppercase tracking-widest font-bold">No recent correlated activity from this IP</div>
+              )
+            ) : (
+              <div className="text-[10px] font-mono text-slate-500 text-center uppercase tracking-widest font-bold">Select an event to view correlations</div>
+            )}
+          </div>
         </div>
 
-        {/* REPLAY CAPABILITY ADAPTER (Replaced Model Health) */}
         <div className="bg-[#050c1a]/75 backdrop-blur-md border border-[#3b528b]/40 flex flex-col p-4 shadow-[0_0_20px_rgba(0,0,0,0.5)] rounded-sm">
           <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-200 uppercase border-b border-[#3b528b]/40 pb-3 mb-4 drop-shadow-sm">
-            INCIDENT TIMELINE & REPLAY
+            {analyzedEvent ? 'MULTI-MODEL CONSENSUS' : 'MODEL HEALTH'}
           </h3>
-          {capabilities.replay ? (
-            <div className="flex-1 flex flex-col justify-center">
-              {/* Replay timeline rendering would go here */}
-            </div>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-center opacity-60">
-              <Play className="w-6 h-6 text-slate-500 mb-2" />
-              <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest">Historical Attack Replay</span>
-              <span className="text-[10px] font-mono text-rose-500 uppercase tracking-widest mt-1">Backend Capability Unavailable</span>
-            </div>
-          )}
+          <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-[10px] font-mono">
+            {analyzedEvent ? (
+              <>
+                {Object.entries(analyzedEvent.ai_assessment.model_consensus).map(([modelKey, data]) => (
+                  <div key={modelKey} className="flex items-center justify-between bg-[#02050f]/60 px-2 py-1.5 border border-[#3b528b]/40 rounded-sm shadow-sm">
+                    <span className="text-slate-300 uppercase tracking-widest truncate mr-2 font-bold">{modelKey.replace('_', ' ')}</span>
+                    <span className={`flex items-center tracking-wider font-bold ${data.verdict === 'THREAT' ? 'text-rose-400' : 'text-emerald-400'}`}>
+                      {data.verdict} — {(data.confidence * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between bg-indigo-900/30 px-2 py-1.5 border border-indigo-500/50 rounded-sm mt-1 sm:col-span-2 shadow-sm">
+                  <span className="text-indigo-200 font-bold uppercase tracking-widest truncate mr-2">FINAL AI VERDICT</span>
+                  <span className={`flex items-center font-bold tracking-widest ${analyzedEvent.ai_assessment.verdict === 'THREAT' ? 'text-rose-400 drop-shadow-[0_0_5px_rgba(251,113,133,0.8)]' : 'text-emerald-400'}`}>
+                    {analyzedEvent.ai_assessment.verdict}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div className="col-span-2 text-[10px] font-mono text-slate-500 text-center uppercase tracking-widest font-bold">Models Online & Healthy</div>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -1225,9 +1224,9 @@ function AnalyticsView({ events, globalSelectedEventId, navigateTo, capabilities
 }
 
 // ============================================================================
-// ZEEK LOGS VIEW 
+// ZEEK LOGS VIEW (WITH BOUNDED SCROLL & AI ASSESSMENT)
 // ============================================================================
-function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSelectedEventId, capabilities }) {
+function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSelectedEventId }) {
   
   const [filterSource, setFilterSource] = useState('ALL');
   const [filterSeverity, setFilterSeverity] = useState('ALL');
@@ -1383,7 +1382,7 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
           </div>
         </div>
 
-        {/* EVENT INSPECTOR */}
+        {/* RIGHT PANEL: Event Inspector & AI Assessment */}
         <div className="flex-1 lg:flex-[0.40] bg-[#050c1a]/75 backdrop-blur-md border border-[#3b528b]/40 flex flex-col relative overflow-hidden shadow-[0_0_20px_rgba(0,0,0,0.5)] rounded-sm max-h-[500px]">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-indigo-400/30 to-transparent"></div>
           <div className="px-4 py-2.5 border-b border-[#3b528b]/40 bg-[#02050f]/60 shrink-0">
@@ -1394,16 +1393,13 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
             {selectedEvent ? (
               <>
                 {/* Event Metadata */}
-                <div className="shrink-0">
-                  <div className="text-sm md:text-base font-bold text-slate-100 uppercase tracking-wide mb-3 drop-shadow-sm">{selectedEvent.ai_assessment.threat_type}</div>
-                  <div className="grid grid-cols-2 gap-y-3 gap-x-2 mb-4">
-                    <div><span className="text-slate-400 block mb-0.5 font-bold">EVENT TYPE</span> <span className="text-slate-100 font-bold">{selectedEvent.ai_assessment.threat_type}</span></div>
-                    <div><span className="text-slate-400 block mb-0.5 font-bold">LOG SOURCE</span> <span className="text-slate-200 font-bold">{selectedEvent.log_source}</span></div>
-                    <div><span className="text-slate-400 block mb-0.5 font-bold">TIMESTAMP</span> <span className="text-slate-200 font-bold">{selectedEvent.timeLabel}</span></div>
-                    <div><span className="text-slate-400 block mb-0.5 font-bold">CONNECTION UID</span> <span className="text-indigo-300 font-bold">{selectedEvent.id}</span></div>
-                    <div><span className="text-slate-400 block mb-0.5 font-bold">SOURCE IP</span> <span className="text-slate-200 font-bold">{selectedEvent.src_ip}</span></div>
-                    <div><span className="text-slate-400 block mb-0.5 font-bold">DESTINATION</span> <span className="text-slate-200 font-bold">{selectedEvent.dst_ip}:{selectedEvent.ports}</span></div>
-                  </div>
+                <div className="grid grid-cols-2 gap-y-3 gap-x-2 mb-4 shrink-0">
+                  <div><span className="text-slate-400 block mb-0.5 font-bold">EVENT TYPE</span> <span className="text-slate-100 font-bold">{selectedEvent.ai_assessment.threat_type}</span></div>
+                  <div><span className="text-slate-400 block mb-0.5 font-bold">LOG SOURCE</span> <span className="text-slate-200 font-bold">{selectedEvent.log_source}</span></div>
+                  <div><span className="text-slate-400 block mb-0.5 font-bold">TIMESTAMP</span> <span className="text-slate-200 font-bold">{selectedEvent.timeLabel}</span></div>
+                  <div><span className="text-slate-400 block mb-0.5 font-bold">CONNECTION UID</span> <span className="text-indigo-300 font-bold">{selectedEvent.id}</span></div>
+                  <div><span className="text-slate-400 block mb-0.5 font-bold">SOURCE IP</span> <span className="text-slate-200 font-bold">{selectedEvent.src_ip}</span></div>
+                  <div><span className="text-slate-400 block mb-0.5 font-bold">DESTINATION</span> <span className="text-slate-200 font-bold">{selectedEvent.dst_ip}:{selectedEvent.ports}</span></div>
                 </div>
 
                 {/* Event Action Utilities */}
@@ -1424,81 +1420,128 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
                 </div>
 
                 {/* AUTOMATED AI THREAT ASSESSMENT PANEL */}
-                <div className="flex flex-col space-y-3 shrink-0 mt-2">
+                <div className="flex flex-col space-y-3 shrink-0">
                   <h4 className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest flex items-center drop-shadow-sm">
                     <Cpu className="w-3 h-3 mr-1.5" /> AI THREAT ASSESSMENT
                   </h4>
+                  
+                  <div className="grid grid-cols-2 gap-2 text-[9px] bg-[#02050f]/80 p-2 border border-[#3b528b]/40 rounded shadow-sm">
+                      <div><span className="text-slate-400 block mb-0.5 font-bold">VERDICT</span> <span className={`font-bold ${selectedEvent.ai_assessment.verdict === 'THREAT' ? 'text-rose-400' : 'text-emerald-400'}`}>{selectedEvent.ai_assessment.verdict === 'FALSE POSITIVE' ? '✓ FALSE POSITIVE' : '⚠ THREAT'}</span></div>
+                      <div><span className="text-slate-400 block mb-0.5 font-bold">CONFIDENCE</span> <span className="text-slate-100 font-bold">{(selectedEvent.ai_assessment.confidence * 100).toFixed(1)}%</span></div>
+                      <div><span className="text-slate-400 block mb-0.5 font-bold">THREAT TYPE</span> <span className="text-slate-200 font-bold">{selectedEvent.ai_assessment.threat_type}</span></div>
+                      <div><span className="text-slate-400 block mb-0.5 font-bold">SEVERITY</span> <span className={getSeverityColor(selectedEvent.ai_assessment.severity) + ' font-bold'}>{selectedEvent.ai_assessment.severity}</span></div>
+                  </div>
 
-                  {/* AI CAPABILITY ADAPTER */}
-                  {capabilities.explainability ? (
-                    <>
-                      <div className="bg-[#02050f]/80 p-2 border border-[#3b528b]/40 rounded text-[9px] shadow-sm">
-                          <span className="text-slate-400 block mb-1 uppercase tracking-widest font-bold">Why was this flagged?</span>
-                          <p className="text-slate-200 leading-relaxed mb-2 font-bold">{selectedEvent.ai_assessment.explanation}</p>
-                          <span className="text-slate-400 block mb-1 uppercase tracking-widest font-bold">Evidence</span>
-                          <ul className="list-disc list-inside text-slate-200 space-y-0.5 ml-1 font-bold">
-                            {selectedEvent.ai_assessment.evidence.map((ev, i) => <li key={i}>{ev}</li>)}
-                          </ul>
-                      </div>
-                      {Object.keys(selectedEvent.ai_assessment.model_consensus).length > 0 && (
-                        <div className="bg-[#02050f]/80 p-2 border border-[#3b528b]/40 rounded text-[9px] shadow-sm">
-                            <span className="text-slate-400 block mb-1 uppercase tracking-widest font-bold">Model Consensus</span>
-                            <div className="space-y-1 mb-2 font-bold">
-                              {Object.entries(selectedEvent.ai_assessment.model_consensus).map(([modelKey, data]) => (
-                                <div key={modelKey} className="flex justify-between items-center">
-                                  <span className="text-slate-300 capitalize">{modelKey.replace('_', ' ')}</span>
-                                  <span className="text-slate-200">
-                                    <span className={data.verdict === 'THREAT' ? 'text-rose-400' : 'text-emerald-400'}>{data.verdict}</span>
-                                    <span className="ml-2 opacity-70">{(data.confidence * 100).toFixed(0)}%</span>
-                                  </span>
-                                </div>
-                              ))}
+                  <div className="bg-[#02050f]/80 p-2 border border-[#3b528b]/40 rounded text-[9px] shadow-sm">
+                      <span className="text-slate-400 block mb-1 uppercase tracking-widest font-bold">Why was this flagged?</span>
+                      <p className="text-slate-200 leading-relaxed mb-2 font-bold">{selectedEvent.ai_assessment.explanation}</p>
+                      <span className="text-slate-400 block mb-1 uppercase tracking-widest font-bold">Evidence</span>
+                      <ul className="list-disc list-inside text-slate-200 space-y-0.5 ml-1 font-bold">
+                        {selectedEvent.ai_assessment.evidence.map((ev, i) => <li key={i}>{ev}</li>)}
+                      </ul>
+                  </div>
+
+                  {Object.keys(selectedEvent.ai_assessment.model_consensus).length > 0 && (
+                    <div className="bg-[#02050f]/80 p-2 border border-[#3b528b]/40 rounded text-[9px] shadow-sm">
+                        <span className="text-slate-400 block mb-1 uppercase tracking-widest font-bold">Model Consensus</span>
+                        <div className="space-y-1 mb-2 font-bold">
+                          {Object.entries(selectedEvent.ai_assessment.model_consensus).map(([modelKey, data]) => (
+                            <div key={modelKey} className="flex justify-between items-center">
+                              <span className="text-slate-300 capitalize">{modelKey.replace('_', ' ')}</span>
+                              <span className="text-slate-200">
+                                <span className={data.verdict === 'THREAT' ? 'text-rose-400' : 'text-emerald-400'}>{data.verdict}</span>
+                                <span className="ml-2 opacity-70">{(data.confidence * 100).toFixed(0)}%</span>
+                              </span>
                             </div>
+                          ))}
                         </div>
-                      )}
-                    </>
-                  ) : (
-                    <div className="bg-[#02050f]/60 p-4 border border-[#3b528b]/30 rounded-sm shadow-inner flex flex-col items-center justify-center text-center opacity-70">
-                      <Cpu className="w-5 h-5 text-slate-500 mb-2" />
-                      <span className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-widest">AI Explanation</span>
-                      <span className="text-[9px] font-mono text-rose-500 uppercase tracking-widest mt-1">Backend Capability Unavailable</span>
+                        <div className="border-t border-[#3b528b]/40 pt-2 flex flex-col justify-center">
+                          <div className="flex justify-between items-center font-bold">
+                            <span className="text-indigo-300 uppercase drop-shadow-sm">Final AI Decision</span>
+                            <span className={selectedEvent.ai_assessment.verdict === 'THREAT' ? 'text-rose-400 drop-shadow-[0_0_5px_rgba(251,113,133,0.8)]' : 'text-emerald-400'}>{selectedEvent.ai_assessment.verdict} — {(selectedEvent.ai_assessment.confidence * 100).toFixed(1)}%</span>
+                          </div>
+                          {selectedEvent.ai_assessment.response_status?.state === 'NEUTRALIZED' && (
+                            <div className="text-emerald-400 font-bold mt-2 pt-2 border-t border-indigo-900/20 text-center tracking-widest uppercase flex items-center justify-center">
+                               <CheckCircle className="w-3 h-3 mr-1.5" /> THREAT NEUTRALIZED
+                            </div>
+                          )}
+                          {selectedEvent.ai_assessment.response_status?.state === 'FAILED' && (
+                            <div className="text-rose-400 font-bold mt-2 pt-2 border-t border-indigo-900/20 text-center tracking-widest uppercase flex items-center justify-center">
+                               <XCircle className="w-3 h-3 mr-1.5" /> RESPONSE FAILED
+                            </div>
+                          )}
+                        </div>
                     </div>
                   )}
 
-                  {/* MITIGATION CAPABILITY ADAPTER */}
-                  <h4 className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest flex items-center drop-shadow-sm mt-4">
-                    <Shield className="w-3 h-3 mr-1.5" /> MITIGATION CONTROL
-                  </h4>
-
-                  {capabilities.mitigation ? (
+                  {/* AI Response Status */}
+                  {selectedEvent.ai_assessment.response_status && (
                     <div className="bg-indigo-900/20 p-2 border border-indigo-500/40 rounded text-[9px] shadow-sm">
-                        <span className="text-slate-400 block mb-0.5 uppercase tracking-widest font-bold">Recommended Action</span>
-                        <p className="text-slate-200 mb-3 font-bold">{selectedEvent.ai_assessment.response_status?.action || "Isolate endpoint."}</p>
+                        <span className="text-indigo-300 block mb-2 uppercase tracking-widest font-bold drop-shadow-sm">AI RESPONSE STATUS</span>
                         
-                        <div className="flex space-x-2">
-                           <button className="flex-1 bg-emerald-500/20 hover:bg-emerald-500/40 border border-emerald-500/50 text-emerald-400 py-1.5 rounded uppercase font-bold tracking-widest transition-colors">[ APPLY ]</button>
-                           <button className="flex-1 bg-[#02050f] hover:bg-[#3b528b]/40 border border-[#3b528b]/60 text-slate-400 hover:text-slate-200 py-1.5 rounded uppercase font-bold tracking-widest transition-colors">[ DISMISS ]</button>
+                        <div className="flex items-center space-x-2 text-slate-200 mb-1 font-bold">
+                          <CheckCircle className="w-3 h-3 text-emerald-400" /> <span>THREAT DETECTED</span>
                         </div>
-                    </div>
-                  ) : (
-                    <div className="bg-[#02050f]/60 p-4 border border-[#3b528b]/30 rounded-sm shadow-inner flex flex-col items-center justify-center text-center opacity-70 mb-4">
-                      <ShieldAlert className="w-5 h-5 text-slate-500 mb-2" />
-                      <span className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-widest">Mitigation Engine</span>
-                      <span className="text-[9px] font-mono text-rose-500 uppercase tracking-widest mt-1">Backend Capability Unavailable</span>
+                        <div className="flex items-center space-x-2 text-slate-200 mb-1 font-bold">
+                          <CheckCircle className="w-3 h-3 text-emerald-400" /> <span>ANALYZING</span>
+                        </div>
+                        
+                        {selectedEvent.ai_assessment.response_status.state === 'NEUTRALIZED' ? (
+                          <>
+                            <div className="flex items-center space-x-2 text-slate-200 mb-1 font-bold">
+                              <CheckCircle className="w-3 h-3 text-emerald-400" /> <span>RESPONSE INITIATED</span>
+                            </div>
+                            <div className="flex items-center space-x-2 text-emerald-400 font-bold mb-3 drop-shadow-sm">
+                              <CheckCircle className="w-3 h-3 text-emerald-400" /> <span>THREAT NEUTRALIZED</span>
+                            </div>
+                          </>
+                        ) : selectedEvent.ai_assessment.response_status.state === 'FAILED' ? (
+                          <>
+                            <div className="flex items-center space-x-2 text-slate-200 mb-1 font-bold">
+                              <CheckCircle className="w-3 h-3 text-emerald-400" /> <span>RESPONSE INITIATED</span>
+                            </div>
+                            <div className="flex items-center space-x-2 text-rose-400 font-bold mb-3 drop-shadow-sm">
+                              <XCircle className="w-3 h-3 text-rose-400" /> <span>RESPONSE FAILED</span>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex items-center space-x-2 text-amber-400 font-bold mb-3 animate-pulse drop-shadow-sm">
+                            <Clock className="w-3 h-3 text-amber-400" /> <span>ACTION PENDING</span>
+                          </div>
+                        )}
+
+                        <span className="text-slate-400 block mb-0.5 uppercase tracking-widest font-bold">{selectedEvent.ai_assessment.response_status.state === 'NEUTRALIZED' ? 'Response Action' : 'Recommended Action'}</span>
+                        <p className="text-slate-200 mb-2 font-bold">{selectedEvent.ai_assessment.response_status.action}</p>
+                        
+                        {selectedEvent.ai_assessment.response_status.response_time && (
+                          <>
+                            <span className="text-slate-400 block mb-0.5 uppercase tracking-widest font-bold">Response Time</span>
+                            <p className="text-slate-200 font-bold">{selectedEvent.ai_assessment.response_status.response_time}</p>
+                          </>
+                        )}
                     </div>
                   )}
 
+                  {/* Navigation utility */}
                   <button 
                     onClick={() => navigateTo('analytics', selectedEvent.id)}
                     className="w-full mt-2 bg-indigo-900/30 hover:bg-indigo-900/50 border border-indigo-500/50 text-indigo-200 text-[10px] font-mono font-bold tracking-widest uppercase py-2 rounded transition-all active:scale-[0.98] text-center shadow-[0_0_10px_rgba(99,102,241,0.2)] hover:shadow-[0_0_15px_rgba(99,102,241,0.4)] shrink-0"
                   >
                     [ VIEW IN THREAT ANALYTICS ]
                   </button>
+
+                  <div className="mt-4 pt-2 border-t border-[#3b528b]/40 shrink-0">
+                    <span className="text-slate-400 block mb-2 uppercase tracking-widest font-bold">RAW EVENT</span>
+                    <pre className="bg-[#02050f]/80 border border-[#3b528b]/40 p-3 rounded text-[10px] text-indigo-300/80 overflow-x-auto whitespace-pre-wrap word-break-all font-bold shadow-inner">
+                      {JSON.stringify(selectedEvent.raw_event, null, 2)}
+                    </pre>
+                  </div>
                 </div>
               </>
             ) : (
-              <div className="flex-1 flex items-center justify-center text-[10px] font-mono text-slate-500 font-bold uppercase">Waiting for live data...</div>
+              <div className="flex items-center justify-center h-full text-[10px] font-mono text-slate-500 uppercase tracking-widest font-bold">Waiting for live data...</div>
             )}
+            
           </div>
         </div>
       </div>
@@ -1506,7 +1549,7 @@ function ZeekLogsView({ events, navigateTo, globalSelectedEventId, setGlobalSele
   );
 }
 
-function TelemetryView({ capabilities }) {
+function TelemetryView() {
   const computeStats = [
     { label: 'CPU', value: '42%', percentage: 42, color: 'bg-indigo-500' },
     { label: 'RAM', value: '12.4/32 GB', percentage: 38, color: 'bg-purple-500' },
@@ -1535,6 +1578,14 @@ function TelemetryView({ capabilities }) {
     { time: '16:50', rate: 17.8 }, { time: '16:51', rate: 18.2 },
     { time: '16:52', rate: 18.4 }, { time: '16:53', rate: 18.1 },
     { time: '16:54', rate: 18.5 }, { time: '16:55', rate: 18.4 },
+  ];
+
+  const systemEvents = [
+    { time: '16:55', event: 'Kafka healthy' },
+    { time: '16:54', event: 'Zeek event buffer flush' },
+    { time: '16:53', event: 'ML pipeline ready' },
+    { time: '16:51', event: 'New sensor node connected' },
+    { time: '16:48', event: 'Kafka rebalancing complete' },
   ];
 
   return (
@@ -1632,22 +1683,17 @@ function TelemetryView({ capabilities }) {
           </div>
         </div>
 
-        {/* SIMULATION CAPABILITY ADAPTER */}
         <div className="bg-[#050c1a]/75 backdrop-blur-md border border-[#3b528b]/40 flex flex-col p-4 relative overflow-hidden shadow-[0_0_20px_rgba(0,0,0,0.5)] rounded-sm">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-indigo-400/30 to-transparent"></div>
-          <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-200 uppercase border-b border-[#3b528b]/40 pb-3 mb-3 drop-shadow-sm">CONTROLLED DDOS SIMULATION</h3>
-          
-          {capabilities.simulation ? (
-            <div className="flex-1 flex flex-col justify-center">
-              {/* Simulation controls would render here */}
-            </div>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-center opacity-60">
-              <Zap className="w-6 h-6 text-slate-500 mb-2" />
-              <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest">Controlled Simulation Mode</span>
-              <span className="text-[10px] font-mono text-rose-500 uppercase tracking-widest mt-1">Backend Capability Unavailable</span>
-            </div>
-          )}
+          <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-200 uppercase border-b border-[#3b528b]/40 pb-3 mb-3 drop-shadow-sm">SYSTEM EVENTS</h3>
+          <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-1 max-h-[150px] lg:max-h-full">
+            {systemEvents.map((evt, i) => (
+              <div key={i} className="flex font-mono text-[10px] md:text-[11px] py-2 border-b border-[#3b528b]/30 last:border-0 font-bold">
+                <span className="text-slate-400 w-14 md:w-16 shrink-0">{evt.time}</span>
+                <span className="text-slate-200">{evt.event}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
