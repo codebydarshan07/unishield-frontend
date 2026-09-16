@@ -512,9 +512,9 @@ function ExecutiveView({ events, navigateTo }) {
   };
 
   // ==========================================================================
-  // PERFECT 4x6 STAGGERED 24-HOUR HONEYCOMB
+  // RADIAL 24-HOUR CHART DATA PREPARATION
   // ==========================================================================
-  const honeycombBuckets = useMemo(() => {
+  const hourlyBuckets = useMemo(() => {
     const buckets = Array.from({length: 24}, (_, i) => ({
       hourLabel: pad(i),
       events: [],
@@ -546,9 +546,9 @@ function ExecutiveView({ events, navigateTo }) {
 
   const [hoveredHex, setHoveredHex] = useState(null);
 
-  const HoneycombTooltip = () => {
+  const RadialTooltip = () => {
     if (!hoveredHex) return null;
-    const bucket = honeycombBuckets.find(b => b.hourLabel === hoveredHex);
+    const bucket = hourlyBuckets.find(b => b.hourLabel === hoveredHex);
     if (!bucket) return null;
     
     const critCount = bucket.events.filter(e => e.ai_assessment.severity === 'CRITICAL').length;
@@ -560,7 +560,7 @@ function ExecutiveView({ events, navigateTo }) {
     const peakConf = bucket.events.length > 0 ? Math.max(...bucket.events.map(e => e.ai_assessment.confidence)) : 0;
 
     return (
-      <div className="absolute top-[35%] left-1/2 transform -translate-x-1/2 -translate-y-full bg-[#050c1a]/95 backdrop-blur-xl border border-[#3b528b]/60 p-3 shadow-2xl rounded-sm z-[100] font-mono w-56 pointer-events-none mb-4">
+      <div className="absolute top-[40%] left-1/2 transform -translate-x-1/2 -translate-y-full bg-[#050c1a]/95 backdrop-blur-xl border border-[#3b528b]/60 p-3 shadow-2xl rounded-sm z-[100] font-mono w-56 pointer-events-none mb-4">
         <p className="text-[10px] text-slate-300 uppercase tracking-widest border-b border-[#3b528b]/40 pb-1 mb-2 flex justify-between">
           <span>PAST 24 HOURS</span>
           <span>{bucket.hourLabel}:00 – {pad((parseInt(bucket.hourLabel)+1)%24)}:00</span>
@@ -581,32 +581,23 @@ function ExecutiveView({ events, navigateTo }) {
     );
   };
 
-  const getHoneycombColor = (severity) => {
+  const getRadialColor = (severity) => {
     switch(severity) {
-      case 'CRITICAL': return 'bg-[#e11d48] text-white font-bold border-[#fecdd3] shadow-[0_0_15px_rgba(225,29,72,0.8)] z-20';
-      case 'HIGH': return 'bg-[#be123c]/90 text-rose-100 font-bold border-[#e11d48] shadow-[0_0_10px_rgba(225,29,72,0.5)] z-10';
-      case 'MEDIUM': return 'bg-[#b45309]/90 text-amber-100 font-bold border-[#f59e0b] z-10';
-      case 'LOW': return 'bg-[#4c1d95]/80 text-purple-200 border-[#7c3aed] z-0';
-      default: return 'bg-[#0a1128]/80 text-slate-500 border-[#1e3a8a] z-0';
+      case 'CRITICAL': return '#ef4444'; // red
+      case 'HIGH': return '#f97316'; // orange
+      case 'MEDIUM': return '#eab308'; // yellow
+      case 'LOW': 
+      case 'NONE': 
+      default: return '#10b981'; // green
     }
   };
 
-  const renderHexRow = (startIndex, endIndex, isOffset) => (
-    <div className={`flex relative z-10 ${isOffset ? 'ml-[25px] -mt-[14px]' : '-mt-[14px]'}`} style={{ gap: '2px' }}>
-      {honeycombBuckets.slice(startIndex, endIndex).map(b => (
-        <div 
-          key={b.hourLabel}
-          onMouseEnter={() => setHoveredHex(b.hourLabel)}
-          onMouseLeave={() => setHoveredHex(null)}
-          onClick={() => navigateTo('stream')}
-          className={`w-[48px] h-[56px] flex items-center justify-center cursor-pointer transition-all duration-200 hover:scale-110 hover:z-50 hover:brightness-125 border border-solid ${getHoneycombColor(b.maxSeverity)}`}
-          style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}
-        >
-          <span className="text-[10px] font-mono opacity-90 pointer-events-none">{b.hourLabel}</span>
-        </div>
-      ))}
-    </div>
-  );
+  const maxEventsVal = Math.max(...hourlyBuckets.map(b => b.events.length), 1);
+  const total24hEvents = hourlyBuckets.reduce((sum, b) => sum + b.events.length, 0);
+
+  const peakBucket = [...hourlyBuckets].sort((a, b) => b.events.length - a.events.length)[0];
+  const peakTypes = peakBucket.events.reduce((acc, e) => { acc[e.ai_assessment.threat_type] = (acc[e.ai_assessment.threat_type] || 0) + 1; return acc; }, {});
+  const peakTopType = Object.entries(peakTypes).sort((a,b) => b[1]-a[1])[0]?.[0] || 'N/A';
 
   return (
     <>
@@ -619,7 +610,7 @@ function ExecutiveView({ events, navigateTo }) {
 
       <div className="flex flex-col lg:flex-row gap-4 md:gap-5">
         
-        {/* PAST 24 HOURS HONEYCOMB PANEL */}
+        {/* RADIAL 24-HOUR CHART PANEL */}
         <div className="flex-1 lg:flex-[0.68] bg-[#050c1a]/75 border border-[#3b528b]/40 flex flex-col relative overflow-visible group min-h-[340px] backdrop-blur-md shadow-[0_0_20px_rgba(0,0,0,0.5)] rounded-sm">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-indigo-400/30 to-transparent"></div>
           <div className="px-4 py-3 border-b border-[#3b528b]/40 flex justify-between items-center bg-[#02050f]/60 relative z-20">
@@ -627,37 +618,88 @@ function ExecutiveView({ events, navigateTo }) {
             <span className="text-[9px] font-mono border border-emerald-500/40 text-emerald-400 bg-emerald-950/40 px-1.5 py-0.5 rounded shadow-sm">[ ROLLING 24H ]</span>
           </div>
           
-          <div className="flex-1 flex items-center justify-center p-4 relative z-10 overflow-visible">
-            {/* EXACT 24 CONNECTED HEXAGONS (4x6 Staggered Grid) */}
-            <div className="relative flex flex-col items-center justify-center pt-[14px]">
-              <HoneycombTooltip />
-              <div className="flex flex-col scale-90 sm:scale-100 md:scale-110 transform origin-center transition-transform">
-                
-                {/* ROW 1: 00 to 05 */}
-                <div className="flex relative z-10" style={{ gap: '2px' }}>
-                  {honeycombBuckets.slice(0, 6).map(b => (
-                    <div 
-                      key={b.hourLabel}
-                      onMouseEnter={() => setHoveredHex(b.hourLabel)}
-                      onMouseLeave={() => setHoveredHex(null)}
-                      onClick={() => navigateTo('stream')}
-                      className={`w-[48px] h-[56px] flex items-center justify-center cursor-pointer transition-all duration-200 hover:scale-110 hover:z-50 hover:brightness-125 border border-solid ${getHoneycombColor(b.maxSeverity)}`}
-                      style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}
-                    >
-                      <span className="text-[10px] font-mono font-bold opacity-90 pointer-events-none drop-shadow-md">{b.hourLabel}</span>
-                    </div>
-                  ))}
+          <div className="flex-1 flex flex-col md:flex-row items-center justify-center p-4 relative z-10 overflow-visible gap-6">
+            
+            {/* RADIAL CHART CONTAINER */}
+            <div className="relative w-full max-w-[280px] aspect-square flex items-center justify-center">
+               <RadialTooltip />
+               <svg viewBox="0 0 400 400" className="w-full h-full drop-shadow-[0_0_15px_rgba(16,185,129,0.15)]">
+                  {/* Outer Rings */}
+                  <circle cx="200" cy="200" r="160" fill="none" stroke="#3b528b" strokeWidth="1" opacity="0.3" strokeDasharray="4 4" />
+                  <circle cx="200" cy="200" r="120" fill="none" stroke="#3b528b" strokeWidth="1" opacity="0.2" />
+                  
+                  {/* Inner Center Circle */}
+                  <circle cx="200" cy="200" r="60" fill="#02050f" stroke="#3b528b" strokeWidth="2" opacity="0.8" />
+                  <text x="200" y="195" textAnchor="middle" fill="#f1f5f9" fontSize="22" fontFamily="monospace" fontWeight="bold">24H</text>
+                  <text x="200" y="215" textAnchor="middle" fill="#94a3b8" fontSize="11" fontFamily="monospace" letterSpacing="2">THREAT</text>
+                  <text x="200" y="230" textAnchor="middle" fill="#94a3b8" fontSize="11" fontFamily="monospace" letterSpacing="2">ACTIVITY</text>
+
+                  {/* 24 Radial Bars */}
+                  {hourlyBuckets.map((bucket, i) => {
+                     const angle = (i * 15 - 90) * (Math.PI / 180);
+                     const innerR = 75;
+                     const maxR = 150;
+                     const barLength = Math.max((bucket.events.length / maxEventsVal) * (maxR - innerR), 8); // min height 8
+                     const outerR = innerR + barLength;
+                     
+                     const x1 = 200 + innerR * Math.cos(angle);
+                     const y1 = 200 + innerR * Math.sin(angle);
+                     const x2 = 200 + outerR * Math.cos(angle);
+                     const y2 = 200 + outerR * Math.sin(angle);
+                     
+                     const color = getRadialColor(bucket.maxSeverity);
+                     
+                     return (
+                       <g key={bucket.hourLabel} 
+                          onMouseEnter={() => setHoveredHex(bucket.hourLabel)}
+                          onMouseLeave={() => setHoveredHex(null)}
+                          onClick={() => navigateTo('stream')}
+                          className="cursor-pointer transition-all duration-300 hover:opacity-80"
+                       >
+                          <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={color} strokeWidth="12" strokeLinecap="round" 
+                                style={{ filter: `drop-shadow(0 0 6px ${color}80)` }} />
+                       </g>
+                     )
+                  })}
+
+                  {/* Hour Labels */}
+                  {['00', '03', '06', '09', '12', '15', '18', '21'].map(label => {
+                      const h = parseInt(label);
+                      const angle = (h * 15 - 90) * (Math.PI / 180);
+                      const r = 180;
+                      const x = 200 + r * Math.cos(angle);
+                      const y = 200 + r * Math.sin(angle) + 4; // slight vertical offset for text
+                      return <text key={label} x={x} y={y} textAnchor="middle" fill="#cbd5e1" fontSize="14" fontFamily="monospace" fontWeight="bold">{label}</text>
+                  })}
+               </svg>
+            </div>
+
+            {/* RIGHT SIDE METRICS & LEGEND */}
+            <div className="flex flex-col space-y-4 w-full md:w-[180px] shrink-0">
+              <div className="bg-[#02050f]/60 border border-[#3b528b]/40 rounded-sm p-3 shadow-inner">
+                <h4 className="text-[10px] text-slate-400 font-mono tracking-widest mb-2 uppercase font-bold">Peak Hour</h4>
+                <div className="border-l-2 border-rose-500 pl-2">
+                   <div className="text-slate-200 font-bold font-mono text-sm">{peakBucket.hourLabel}:00 - {pad((parseInt(peakBucket.hourLabel)+1)%24)}:00</div>
+                   <div className="text-indigo-300 font-mono text-[11px] mt-1 font-bold">{peakBucket.events.length} Events</div>
+                   <div className="text-slate-400 font-mono text-[10px] mt-0.5 truncate">{peakTopType}</div>
                 </div>
+              </div>
+              
+              <div className="bg-[#02050f]/60 border border-[#3b528b]/40 rounded-sm p-3 shadow-inner">
+                <h4 className="text-[10px] text-slate-400 font-mono tracking-widest mb-2 uppercase font-bold">Total Events</h4>
+                <div className="text-slate-100 font-bold font-mono text-2xl drop-shadow-sm">{total24hEvents.toLocaleString()}</div>
+                <div className="text-emerald-400 font-mono text-[10px] mt-1 font-bold">▲ Live Data Active</div>
+              </div>
 
-                {/* ROW 2: 06 to 11 (Interlocking Offset) */}
-                {renderHexRow(6, 12, true)}
-                {/* ROW 3: 12 to 17 (Aligned with Row 1) */}
-                {renderHexRow(12, 18, false)}
-                {/* ROW 4: 18 to 23 (Aligned with Row 2) */}
-                {renderHexRow(18, 24, true)}
-
+              {/* Legend */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#3b528b]/40 mt-2">
+                 <div className="flex items-center"><div className="w-2 h-2 rounded-full bg-[#10b981] mr-1.5 shadow-[0_0_5px_#10b981]"></div><span className="text-[9px] font-mono text-slate-300">Normal</span></div>
+                 <div className="flex items-center"><div className="w-2 h-2 rounded-full bg-[#eab308] mr-1.5 shadow-[0_0_5px_#eab308]"></div><span className="text-[9px] font-mono text-slate-300">Suspicious</span></div>
+                 <div className="flex items-center"><div className="w-2 h-2 rounded-full bg-[#f97316] mr-1.5 shadow-[0_0_5px_#f97316]"></div><span className="text-[9px] font-mono text-slate-300">Attack</span></div>
+                 <div className="flex items-center"><div className="w-2 h-2 rounded-full bg-[#ef4444] mr-1.5 shadow-[0_0_5px_#ef4444]"></div><span className="text-[9px] font-mono text-slate-300">Critical</span></div>
               </div>
             </div>
+
           </div>
         </div>
 
@@ -755,7 +797,7 @@ function ExecutiveView({ events, navigateTo }) {
           <div className="px-4 py-3 border-b border-[#3b528b]/40 bg-[#02050f]/60 shrink-0">
             <h3 className="text-[11px] font-mono font-bold tracking-widest text-slate-200 uppercase drop-shadow-sm">TOP THREAT SOURCES</h3>
           </div>
-          <div className="flex-1 p-5 flex flex-col justify-start space-y-4 font-mono overflow-y-auto custom-scrollbar">
+          <div className="flex-1 p-5 flex flex-col justify-start space-y-4 font-mono overflow-y-auto custom-scrollbar pt-5">
             {topSources.length > 0 ? topSources.map((source, i) => {
               const percentage = (source.count / maxSourceCount) * 100;
               const severity = i === 0 ? 'CRITICAL' : i < 3 ? 'HIGH' : 'MEDIUM';
